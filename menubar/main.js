@@ -64,9 +64,9 @@ app.on('ready', async () => {
     console.log('claude-pet menu bar app ready');
   });
 
-  // Reload to get fresh state every time the popover shows
+  // Refresh state (not full reload) every time the popover shows
   mb.on('after-show', () => {
-    mb.window?.webContents.loadURL(SERVER_URL);
+    mb.window?.webContents.executeJavaScript('poll()').catch(() => {});
   });
 });
 

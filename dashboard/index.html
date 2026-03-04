@@ -52,6 +52,12 @@
     z-index: 1;
     width: 320px;
     padding: 10px 0 8px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .container.ready {
+    opacity: 1;
   }
 
   /* ═══════════════════════════════════════════════
@@ -82,9 +88,10 @@
   }
 
   .blob-preview {
-    width: 160px;
-    height: 160px;
-    margin-bottom: 20px;
+    width: 120px;
+    height: 120px;
+    margin-bottom: 16px;
+    display: block;
   }
 
   .onboarding label {
@@ -175,7 +182,6 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    animation: fadeIn 0.5s ease;
   }
 
   /* Header */
@@ -213,7 +219,7 @@
 
   .mood-happy .mood-badge { background: #22c55e18; color: #4ade80; }
   .mood-neutral .mood-badge { background: #f59e0b18; color: #fbbf24; }
-  .mood-hungry .mood-badge { background: #f59e0b18; color: #fbbf24; }
+  .mood-tired .mood-badge { background: #f59e0b18; color: #fbbf24; }
   .mood-sad .mood-badge { background: #f43f5e18; color: #fb7185; }
 
   /* Streak */
@@ -232,7 +238,7 @@
     justify-content: center;
   }
 
-  .scene-svg { width: 300px; height: 230px; }
+  .scene-svg { width: 300px; height: 200px; }
 
   /* Stats card */
   .stats {
@@ -284,6 +290,14 @@
     font-variant-numeric: tabular-nums;
   }
 
+  .stat-hint {
+    font-size: 10px;
+    color: var(--text-muted);
+    padding-left: 26px;
+    margin-top: -4px;
+    opacity: 0.7;
+  }
+
   /* Evolution */
   .evo-section { margin: 2px 10px 0; }
 
@@ -323,18 +337,6 @@
     color: var(--text-muted);
     margin-top: 3px;
     text-align: right;
-  }
-
-  .evo-max {
-    text-align: center;
-    font-weight: 800;
-    font-size: 13px;
-    padding: 6px 0;
-    background: linear-gradient(90deg, #c084fc, #f0abfc, #c084fc);
-    background-size: 200% 100%;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    animation: shimmer 3s ease-in-out infinite;
   }
 
   /* Buttons */
@@ -397,15 +399,6 @@
     opacity: 0.8;
   }
 
-  /* Age line */
-  .age-line {
-    text-align: center;
-    font-size: 11px;
-    color: var(--text-muted);
-    padding-bottom: 2px;
-    opacity: 0.6;
-  }
-
   /* Toast */
   .toast {
     position: fixed;
@@ -446,6 +439,12 @@
     50% { transform: translateY(-5px) scale(1.015); }
   }
 
+  @keyframes tool-pulse {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.08); }
+    100% { transform: scale(1); }
+  }
+
   @keyframes squish {
     0% { transform: scale(1, 1); }
     18% { transform: scale(1.2, 0.82); }
@@ -463,11 +462,6 @@
     58% { transform: translateY(0) rotate(0deg); }
     72% { transform: translateY(-5px) rotate(2deg); }
     88%, 100% { transform: translateY(0) rotate(0deg); }
-  }
-
-  @keyframes pulse-heart {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.22); }
   }
 
   @keyframes float-up {
@@ -490,9 +484,82 @@
     50% { opacity: 1; }
   }
 
-  @keyframes shimmer {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
+  /* Evolution celebration */
+  .evo-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at center, #0a0e14ee 0%, #0a0e14 70%);
+    animation: evo-fade-in 0.4s ease;
+    pointer-events: all;
+  }
+
+  .evo-overlay .evo-stage {
+    font-size: 32px;
+    font-weight: 900;
+    letter-spacing: -1px;
+    background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent), #fff 40%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: evo-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    animation-delay: 0.3s;
+    opacity: 0;
+  }
+
+  .evo-overlay .evo-subtitle {
+    font-size: 14px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    animation: evo-pop 0.5s ease both;
+    animation-delay: 0.6s;
+    opacity: 0;
+  }
+
+  .evo-overlay .evo-blob-wrap {
+    margin: 24px 0;
+    animation: evo-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    animation-delay: 0.15s;
+    opacity: 0;
+  }
+
+  .evo-confetti {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 51;
+    overflow: hidden;
+  }
+
+  .evo-confetti span {
+    position: absolute;
+    top: -10px;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    animation: confetti-fall linear forwards;
+  }
+
+  @keyframes evo-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes evo-pop {
+    from { opacity: 0; transform: scale(0.5) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  @keyframes confetti-fall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
   }
 
   @keyframes hatch-bob {
@@ -514,7 +581,7 @@
     <h1>Your pet awaits</h1>
     <p class="subtitle">A coding companion, born from tool calls</p>
 
-    <svg class="blob-preview" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg">
+    <svg class="blob-preview" viewBox="-40 -45 80 80" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="previewGrad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="#4ade80"/>
@@ -525,9 +592,9 @@
           <stop offset="100%" stop-color="#4ade80" stop-opacity="0"/>
         </radialGradient>
       </defs>
-      <ellipse cx="80" cy="90" rx="45" ry="30" fill="url(#previewGlow)" style="animation: onboard-glow 3s ease-in-out infinite;"/>
-      <ellipse cx="80" cy="115" rx="24" ry="5" fill="#131921" opacity="0.4"/>
-      <g transform="translate(80, 85)" style="animation: hatch-bob 2.5s ease-in-out infinite;">
+      <ellipse cx="0" cy="5" rx="45" ry="30" fill="url(#previewGlow)" style="animation: onboard-glow 3s ease-in-out infinite;"/>
+      <ellipse cx="0" cy="30" rx="24" ry="5" fill="#131921" opacity="0.4"/>
+      <g style="animation: hatch-bob 2.5s ease-in-out infinite;">
         <path d="M0,-28 C14,-30 26,-20 26,-4 C26,14 16,30 0,30 C-16,30 -26,14 -26,-4 C-26,-20 -14,-30 0,-28 Z"
               fill="url(#previewGrad)" id="previewBlob"/>
         <g id="previewFace">
@@ -559,7 +626,7 @@
     <div class="streak-row" id="streakRow"></div>
 
     <div class="scene-wrap">
-      <svg class="scene-svg" viewBox="0 0 300 230" xmlns="http://www.w3.org/2000/svg">
+      <svg class="scene-svg" viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="blobGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stop-color="#4ade80" id="gradStop1"/>
@@ -569,14 +636,10 @@
             <stop offset="0%" stop-color="#4ade80" stop-opacity="0.2" id="glowStop"/>
             <stop offset="100%" stop-color="#4ade80" stop-opacity="0"/>
           </radialGradient>
-          <path id="heartShape" d="M0,-4.5 C-1.2,-7.5 -5.5,-7.5 -5.5,-4.5 C-5.5,-1.5 0,3.5 0,5.5 C0,3.5 5.5,-1.5 5.5,-4.5 C5.5,-7.5 1.2,-7.5 0,-4.5 Z"/>
         </defs>
 
         <!-- Glow behind blob -->
-        <ellipse cx="150" cy="140" rx="55" ry="35" fill="url(#glowGrad)" id="blobGlow"/>
-
-        <!-- Hearts row -->
-        <g id="heartsGroup" transform="translate(150, 18)"></g>
+        <ellipse cx="150" cy="125" rx="55" ry="35" fill="url(#glowGrad)" id="blobGlow"/>
 
         <!-- Floating elements -->
         <g id="floaters"></g>
@@ -585,7 +648,7 @@
         <g id="particles"></g>
 
         <!-- Blob -->
-        <g transform="translate(150, 135)">
+        <g transform="translate(150, 120)">
           <g id="blobGroup" style="animation: breathe 3.5s ease-in-out infinite;">
             <ellipse id="blobShadow" cx="0" cy="52" rx="44" ry="6" fill="#0a0e14" opacity="0.35"/>
             <path id="blobPath" fill="url(#blobGrad)"/>
@@ -595,30 +658,26 @@
         </g>
 
         <!-- Ground -->
-        <rect x="35" y="200" width="230" height="12" rx="6" fill="#131921"/>
-        <rect x="35" y="200" width="230" height="5" rx="3" fill="#1a2230" opacity="0.5"/>
+        <rect x="35" y="185" width="230" height="12" rx="6" fill="#131921"/>
+        <rect x="35" y="185" width="230" height="5" rx="3" fill="#1a2230" opacity="0.5"/>
       </svg>
     </div>
 
     <div class="stats">
-      <div class="stat-row">
-        <span class="stat-icon">&#127829;</span>
-        <span class="stat-label">Hunger</span>
-        <div class="stat-bar-bg"><div class="stat-bar-fill" id="hungerBar"></div></div>
-        <span class="stat-value" id="hungerVal">0%</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-icon">&#128155;</span>
-        <span class="stat-label">Joy</span>
-        <div class="stat-bar-bg"><div class="stat-bar-fill" id="happinessBar"></div></div>
-        <span class="stat-value" id="happinessVal">0%</span>
-      </div>
       <div class="stat-row">
         <span class="stat-icon">&#9889;</span>
         <span class="stat-label">Energy</span>
         <div class="stat-bar-bg"><div class="stat-bar-fill" id="energyBar"></div></div>
         <span class="stat-value" id="energyVal">0%</span>
       </div>
+      <div class="stat-hint">drains as you code · recovers at rest</div>
+      <div class="stat-row">
+        <span class="stat-icon">&#127919;</span>
+        <span class="stat-label">Focus</span>
+        <div class="stat-bar-bg"><div class="stat-bar-fill" id="focusBar"></div></div>
+        <span class="stat-value" id="focusVal">0%</span>
+      </div>
+      <div class="stat-hint">builds as you code · fades at rest</div>
     </div>
 
     <div class="evo-section" id="evoSection"></div>
@@ -626,16 +685,15 @@
     <div class="buttons">
       <button class="btn" id="feedBtn" onclick="doFeed()">
         <span class="btn-main"><span class="btn-icon">&#127829;</span> Feed</span>
-        <span class="btn-cost">+25 hunger</span>
+        <span class="btn-cost">+25 energy · -15 focus</span>
       </button>
       <button class="btn" id="playBtn" onclick="doPlay()">
         <span class="btn-main"><span class="btn-icon">&#127918;</span> Play</span>
-        <span class="btn-cost">+20 joy · -15 energy</span>
+        <span class="btn-cost">+15 focus · -15 energy</span>
       </button>
     </div>
 
     <div class="flavor" id="flavorText"></div>
-    <div class="age-line" id="ageLine"></div>
   </div>
 
 </div>
@@ -715,7 +773,7 @@ function makeFace(mood, oy, fc, stage) {
       <circle cx="8" cy="${-10+oy}" r="${3*scale}" fill="${fc}" class="eye-open"/>
       <line x1="5" y1="${-10+oy}" x2="11" y2="${-10+oy}" stroke="${fc}" stroke-width="${sw}" stroke-linecap="round" class="eye-closed" style="display:none"/>
       <line x1="-5" y1="${2+oy}" x2="5" y2="${2+oy}" stroke="${fc}" stroke-width="${sw2}" stroke-linecap="round"/>`,
-    hungry: `
+    tired: `
       <line x1="-12" y1="${-13+oy}" x2="-5" y2="${-7+oy}" stroke="${fc}" stroke-width="${sw}" stroke-linecap="round"/>
       <line x1="-5" y1="${-13+oy}" x2="-12" y2="${-7+oy}" stroke="${fc}" stroke-width="${sw}" stroke-linecap="round"/>
       <line x1="5" y1="${-13+oy}" x2="12" y2="${-7+oy}" stroke="${fc}" stroke-width="${sw}" stroke-linecap="round"/>
@@ -740,31 +798,31 @@ const FLAVOR = {
   egg: {
     happy:   ['Wiggling in the shell!', 'Something stirs within...', 'Almost ready to hatch!', 'A warm glow from inside'],
     neutral: ['Resting quietly...', 'A warm little egg', 'Patience...', 'The shell hums softly'],
-    hungry:  ['The shell trembles...', 'Needs warmth to grow', 'Feed to help it hatch!', 'A faint rumble inside'],
+    tired:   ['The shell trembles...', 'Needs warmth to grow', 'Feeling drowsy inside...', 'A faint rumble inside'],
     sad:     ['The egg feels cold...', 'So alone in here...', '*faint tapping from inside*', 'Waiting for a friend...'],
   },
   baby: {
     happy:   ['Just vibing in the terminal', 'Small but mighty!', 'Happy little hacker', 'Living the newborn life'],
     neutral: ['Watching you type...', 'Contemplating semicolons', 'Absorbing knowledge', 'What does this function do?'],
-    hungry:  ['Feed me with tool calls!', 'Code is food, right?', 'Running on empty...', 'A snack would be nice...'],
+    tired:   ['Feeling drowsy...', 'Could use a break...', 'Eyes getting heavy...', 'Losing focus...'],
     sad:     ['Come back soon...', 'The terminal feels empty', '*sad beeping noises*', 'Missing you...'],
   },
   teen: {
     happy:   ['Feeling unstoppable!', 'Code goes brrr', 'Ship it!', 'Ready to refactor the world'],
     neutral: ['Contemplating the codebase...', 'Steady progress', 'Another commit, another day', 'Watching the CI run'],
-    hungry:  ['Need more commits...', 'Hungry for some PRs', 'That last build was just an appetizer', 'Merge me a snack'],
+    tired:   ['Losing focus...', 'Running on fumes here!', 'Could use a break...', 'The code blurs together'],
     sad:     ['The code feels far away...', 'No PRs in ages', '*teenage angst intensifies*', 'Remember when we shipped?'],
   },
   adult: {
     happy:   ['Peak performance!', 'Battle-tested and thriving', '10x developer energy', 'A true coding companion'],
     neutral: ['Steady and reliable', 'Wisdom comes with tokens', 'Standing guard over the repo', 'Another day, another deploy'],
-    hungry:  ['Even veterans need fuel...', 'The old hunger returns', 'Feed the beast!', 'Running low on tokens'],
+    tired:   ['Even veterans need rest...', 'The fatigue sets in', 'Could use a break...', 'Running low on steam'],
     sad:     ['Even the strongest feel low', 'Remember the good times...', '*stares into the void of unused imports*', 'The void stares back'],
   },
   elder: {
     happy:   ['Transcendent coding energy!', 'Ascended beyond mere bugs', 'The code flows through me', 'One with the repository'],
     neutral: ['Ancient wisdom, quiet power', 'Seen a thousand repos', 'Time moves differently here', 'The eternal watcher'],
-    hungry:  ['Even legends need sustenance...', 'The eternal hunger...', 'One more token for the ages', 'A cosmic appetite'],
+    tired:   ['Even legends need rest...', 'The eternal drowsiness...', 'Eyelids growing heavy...', 'A cosmic weariness'],
     sad:     ['Heavy is the crown...', 'The weight of all those commits', 'Contemplating the void between keystrokes', 'Even stars grow dim'],
   },
 };
@@ -793,10 +851,6 @@ function showToast(msg, type) {
   t.textContent = msg;
   t.className = 'toast toast-' + type + ' show';
   setTimeout(() => { t.className = 'toast toast-' + type; }, 2200);
-}
-
-function daysOld(born) {
-  return Math.floor((Date.now() - born) / (1000 * 60 * 60 * 24));
 }
 
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
@@ -894,7 +948,7 @@ function render(s) {
   if (s.stage !== prev.stage || s.mood !== prev.mood) {
     const stageText = s.stage.charAt(0).toUpperCase() + s.stage.slice(1);
     const moodText = s.mood.charAt(0).toUpperCase() + s.mood.slice(1);
-    const moodEmoji = { happy: '\u{1F60A}', neutral: '\u{1F610}', hungry: '\u{1F623}', sad: '\u{1F622}' }[s.mood] || '';
+    const moodEmoji = { happy: '\u{1F60A}', neutral: '\u{1F610}', tired: '\u{1F62A}', sad: '\u{1F622}' }[s.mood] || '';
     const meta = document.getElementById('petMeta');
     meta.className = 'pet-meta mood-' + s.mood;
     document.getElementById('stageLabel').textContent = stageText;
@@ -904,7 +958,7 @@ function render(s) {
   // Streak
   if (s.streakDays !== prev.streakDays || s.bestStreak !== prev.bestStreak) {
     const sr = document.getElementById('streakRow');
-    if (s.streakDays > 0) {
+    if (s.streakDays > 1) {
       const best = s.bestStreak > s.streakDays ? `<span class="streak-best">best: ${s.bestStreak}</span>` : '';
       const bonus = streakBonus(s.streakDays);
       const bonusHtml = bonus ? `<span class="streak-bonus">(${bonus})</span>` : '';
@@ -916,6 +970,9 @@ function render(s) {
 
   // Blob + glow + shadow — only rebuild when stage changes
   if (s.stage !== prev.stage) {
+    // Celebrate evolution (skip first render)
+    if (prev.stage) celebrateEvolution(s.stage);
+
     const blob = BLOBS[s.stage] || BLOBS.baby;
     document.getElementById('blobPath').setAttribute('d', blob.body);
     document.getElementById('blobShadow').setAttribute('rx', SHADOW_RX[s.stage] || 28);
@@ -930,22 +987,6 @@ function render(s) {
     document.getElementById('faceGroup').innerHTML = makeFace(s.mood, oy, color.face, s.stage);
   }
 
-  // Hearts — only rebuild when happiness band changes
-  const heartBand = Math.min(5, Math.ceil(s.happiness / 20));
-  if (heartBand !== prev.heartBand) {
-    const hg = document.getElementById('heartsGroup');
-    let hHtml = '';
-    for (let i = 0; i < 5; i++) {
-      const x = (i - 2) * 18;
-      const on = i < heartBand;
-      const col = on ? '#f43f5e' : '#1a2230';
-      const anim = on ? ` style="animation: pulse-heart 2s ease-in-out infinite; animation-delay: ${i * 0.12}s; transform-origin: ${x}px 0px;"` : '';
-      hHtml += `<use href="#heartShape" x="${x}" y="0" fill="${col}"${anim}/>`;
-    }
-    hg.innerHTML = hHtml;
-    prev.heartBand = heartBand;
-  }
-
   // Floaters — only rebuild when mood or energy band changes
   const energyLow = s.energy < 30;
   if (s.mood !== prev.mood || energyLow !== prev.energyLow || s.color !== prev.color) {
@@ -954,19 +995,19 @@ function render(s) {
     if (energyLow) {
       const chars = ['z', 'z', 'Z'];
       for (let i = 0; i < 3; i++) {
-        fHtml += `<text x="${194+i*13}" y="${105-i*11}" fill="#475569" font-size="${12+i*4}" font-weight="bold"
+        fHtml += `<text x="${194+i*13}" y="${90-i*11}" fill="#475569" font-size="${12+i*4}" font-weight="bold"
           style="animation: drift-zzz 3s ease-in-out infinite; animation-delay: ${i*0.7}s;">${chars[i]}</text>`;
       }
     } else if (s.mood === 'happy') {
-      fHtml += `<text x="200" y="108" fill="${color.from}" font-size="20"
+      fHtml += `<text x="200" y="93" fill="${color.from}" font-size="20"
         style="animation: float-up 2.8s ease-in-out infinite;">&#9835;</text>`;
-    } else if (s.mood === 'hungry') {
+    } else if (s.mood === 'tired') {
       for (let i = 0; i < 3; i++) {
-        fHtml += `<circle cx="${194+i*9}" cy="114" r="2.5" fill="#fbbf24"
+        fHtml += `<circle cx="${194+i*9}" cy="99" r="2.5" fill="#fbbf24"
           style="animation: dots-pulse 1.5s ease-in-out infinite; animation-delay: ${i*0.3}s;"/>`;
       }
     } else if (s.mood === 'sad') {
-      fHtml += `<ellipse cx="200" cy="114" rx="3" ry="5" fill="#60a5fa" opacity="0.5"
+      fHtml += `<ellipse cx="200" cy="99" rx="3" ry="5" fill="#60a5fa" opacity="0.5"
         style="animation: tear-fall 2.2s ease-in infinite;"/>`;
     }
     fg.innerHTML = fHtml;
@@ -983,9 +1024,8 @@ function render(s) {
     lbl.textContent = v + '%';
     lbl.style.color = statColor(v);
   }
-  setStat('hunger', s.hunger);
-  setStat('happiness', s.happiness);
   setStat('energy', s.energy);
+  setStat('focus', s.focus);
 
   // Evolution (no animations — safe to always update)
   const es = document.getElementById('evoSection');
@@ -1000,7 +1040,7 @@ function render(s) {
       <div class="evo-detail">${s.evolution.tokenProgress.toLocaleString()}/${s.evolution.tokenTarget.toLocaleString()} tokens</div>
     </div>`;
   } else {
-    es.innerHTML = '<div class="evo-max">&#9733; MAX EVOLUTION &#9733;</div>';
+    es.innerHTML = '';
   }
 
   // Flavor — only change when mood or stage changes
@@ -1008,11 +1048,6 @@ function render(s) {
     const flavors = FLAVOR[s.stage]?.[s.mood] || ['...'];
     document.getElementById('flavorText').textContent = pick(flavors);
   }
-
-  // Age
-  const days = daysOld(s.born);
-  const age = days === 0 ? 'Born today' : days === 1 ? '1 day old' : days + ' days old';
-  document.getElementById('ageLine').textContent = age;
 
   // Track previous values for diff-based rendering
   prev.name = s.name;
@@ -1050,17 +1085,117 @@ function spawnParticles(type) {
     const angle = (Math.PI * 2 * i) / 7;
     const dist = 42 + Math.random() * 25;
     const ex = 150 + Math.cos(angle) * dist;
-    const ey = 130 + Math.sin(angle) * dist - 10;
+    const ey = 115 + Math.sin(angle) * dist - 10;
     const emoji = emojis[Math.floor(Math.random() * emojis.length)];
     const d = (i * 0.03).toFixed(2);
     html += `<text font-size="14" text-anchor="middle">
       <animate attributeName="x" from="150" to="${ex.toFixed(0)}" dur="0.6s" begin="${d}s" fill="freeze"/>
-      <animate attributeName="y" from="135" to="${ey.toFixed(0)}" dur="0.6s" begin="${d}s" fill="freeze"/>
+      <animate attributeName="y" from="120" to="${ey.toFixed(0)}" dur="0.6s" begin="${d}s" fill="freeze"/>
       <animate attributeName="opacity" from="1" to="0" dur="0.6s" begin="${d}s" fill="freeze"/>
       ${emoji}</text>`;
   }
   pg.innerHTML = html;
   setTimeout(() => { pg.innerHTML = ''; }, 900);
+}
+
+// ─── Evolution celebration ───
+const STAGE_LABELS = {
+  baby: 'Baby',
+  teen: 'Teen',
+  adult: 'Adult',
+  elder: 'Elder',
+};
+
+function celebrateEvolution(newStage) {
+  const label = STAGE_LABELS[newStage] || newStage;
+
+  // Confetti layer
+  const confetti = document.createElement('div');
+  confetti.className = 'evo-confetti';
+  const colors = ['#4ade80', '#60a5fa', '#c084fc', '#fb7185', '#fbbf24', '#67e8f9'];
+  for (let i = 0; i < 40; i++) {
+    const span = document.createElement('span');
+    span.style.left = Math.random() * 100 + '%';
+    span.style.background = colors[Math.floor(Math.random() * colors.length)];
+    span.style.width = (5 + Math.random() * 6) + 'px';
+    span.style.height = (5 + Math.random() * 6) + 'px';
+    span.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+    span.style.animationDelay = (Math.random() * 0.8) + 's';
+    confetti.appendChild(span);
+  }
+  document.body.appendChild(confetti);
+
+  // Overlay
+  const overlay = document.createElement('div');
+  overlay.className = 'evo-overlay';
+  overlay.innerHTML = `
+    <div class="evo-blob-wrap">
+      <svg width="120" height="120" viewBox="-80 -80 160 160" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="evoGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="var(--accent)"/>
+            <stop offset="100%" stop-color="color-mix(in srgb, var(--accent), #000 20%)"/>
+          </linearGradient>
+        </defs>
+        <path d="${(BLOBS[newStage] || BLOBS.baby).body}" fill="url(#evoGrad)"/>
+      </svg>
+    </div>
+    <div class="evo-stage">${label}</div>
+    <div class="evo-subtitle">${currentState?.name || 'Your pet'} evolved!</div>
+  `;
+  overlay.onclick = () => {
+    overlay.remove();
+    confetti.remove();
+  };
+  document.body.appendChild(overlay);
+
+  // Auto-dismiss after 4s
+  setTimeout(() => {
+    overlay.remove();
+    confetti.remove();
+  }, 4000);
+}
+
+// ─── Reaction faces (temporary expressions during feed/play) ───
+let reactionTimer = null;
+
+function showReaction(type) {
+  if (!currentState) return;
+  const fg = document.getElementById('faceGroup');
+  const color = COLORS[currentState.color] || COLORS.slime;
+  const fc = color.face;
+  const oy = FACE_OFFSET[currentState.stage] || 0;
+  const scale = { baby: 1, teen: 1, adult: 1.05, elder: 1.1 }[currentState.stage] || 1;
+  const sw = (2.5 * scale).toFixed(1);
+  const sw2 = (2 * scale).toFixed(1);
+
+  // Egg just gets wide eyes
+  if (currentState.stage === 'egg') {
+    const r = type === 'feed' ? 3 : 2.5;
+    fg.innerHTML = `<circle cx="-6" cy="${-6+oy}" r="${r}" fill="${fc}"/>
+                    <circle cx="6" cy="${-6+oy}" r="${r}" fill="${fc}"/>`;
+  } else if (type === 'feed') {
+    // Eating face: happy eyes + open mouth
+    fg.innerHTML = `
+      <path d="M-10,${-10+oy} Q-8,${-15+oy} -6,${-10+oy}" stroke="${fc}" stroke-width="${sw}" fill="none" stroke-linecap="round"/>
+      <path d="M6,${-10+oy} Q8,${-15+oy} 10,${-10+oy}" stroke="${fc}" stroke-width="${sw}" fill="none" stroke-linecap="round"/>
+      <ellipse cx="0" cy="${3+oy}" rx="5" ry="6" fill="${fc}" opacity="0.8"/>`;
+  } else {
+    // Play face: star eyes + big grin
+    fg.innerHTML = `
+      <text x="-8" y="${-6+oy}" font-size="${10*scale}" text-anchor="middle" fill="${fc}">*</text>
+      <text x="8" y="${-6+oy}" font-size="${10*scale}" text-anchor="middle" fill="${fc}">*</text>
+      <path d="M-8,${2+oy} Q0,${10+oy} 8,${2+oy}" stroke="${fc}" stroke-width="${sw2}" fill="none" stroke-linecap="round"/>`;
+  }
+
+  // Revert to normal face after animation
+  clearTimeout(reactionTimer);
+  reactionTimer = setTimeout(() => {
+    if (currentState) {
+      const oy2 = FACE_OFFSET[currentState.stage] || 0;
+      fg.innerHTML = makeFace(currentState.mood, oy2, color.face, currentState.stage);
+    }
+  }, 800);
 }
 
 // ─── Blob animation trigger ───
@@ -1084,9 +1219,10 @@ async function doFeed() {
     const d = await r.json();
     currentState = d;
     render(d);
+    showReaction('feed');
     triggerAnim('squish');
     spawnParticles('feed');
-    showToast('Yum! +25 hunger \u{1F355}', 'feed');
+    showToast('Snack time! +25 energy -15 focus \u{1F355}', 'feed');
   } catch {
     showToast('Feed failed!', 'warn');
   }
@@ -1105,14 +1241,50 @@ async function doPlay() {
     if (d.message) {
       showToast(d.message + ' \u{1F4A4}', 'warn');
     } else {
+      showReaction('play');
       triggerAnim('bounce');
       spawnParticles('play');
-      showToast('+20 joy  -15 energy \u{1F3AE}', 'play');
+      showToast('+15 focus  -15 energy \u{1F3AE}', 'play');
     }
   } catch {
     showToast('Play failed!', 'warn');
   }
   setTimeout(() => { playCD = false; document.getElementById('playBtn').disabled = false; }, 1200);
+}
+
+// ─── Tool-call pulse ───
+let lastTokens = null;
+let pulseTimer = null;
+
+function toolPulse() {
+  const glow = document.getElementById('blobGlow');
+  if (!glow) return;
+
+  // Brief glow expansion
+  const baseRx = glow.getAttribute('rx');
+  const baseRy = glow.getAttribute('ry');
+  glow.setAttribute('rx', parseFloat(baseRx) * 1.4);
+  glow.setAttribute('ry', parseFloat(baseRy) * 1.4);
+  glow.style.transition = 'none';
+  glow.style.opacity = '0.6';
+
+  // Micro-bounce on blob
+  const bg = document.getElementById('blobGroup');
+  const currentAnim = bg.style.animation;
+  if (!currentAnim.includes('squish') && !currentAnim.includes('bounce')) {
+    bg.style.animation = 'none';
+    bg.offsetHeight;
+    bg.style.animation = 'tool-pulse 0.3s ease, breathe 3.5s ease-in-out infinite 0.3s';
+  }
+
+  // Fade glow back
+  clearTimeout(pulseTimer);
+  pulseTimer = setTimeout(() => {
+    glow.setAttribute('rx', baseRx);
+    glow.setAttribute('ry', baseRy);
+    glow.style.transition = 'opacity 0.4s ease';
+    glow.style.opacity = '';
+  }, 300);
 }
 
 // ─── Polling ───
@@ -1133,8 +1305,18 @@ async function poll() {
       document.getElementById('dashboard').style.display = 'flex';
       render(d);
       if (!blinkTimer) startBlink();
+
+      // Detect tool calls since last poll
+      if (lastTokens !== null && d.lifetimeTokens > lastTokens) {
+        toolPulse();
+      }
+      lastTokens = d.lifetimeTokens;
+
       initialized = true;
     }
+
+    // Reveal after first render (no placeholder flash)
+    document.querySelector('.container').classList.add('ready');
   } catch {}
 }
 

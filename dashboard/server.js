@@ -8,26 +8,16 @@ const engine = require('../pet-engine.js');
 const PORT = 7742;
 const HTML_FILE = path.join(__dirname, 'index.html');
 
-function getEnrichedState() {
-  let state = engine.loadState();
-  if (!state) {
-    state = engine.createDefaultState();
-    engine.saveState(state);
-  }
-  engine.updateStreak(state);
-  engine.applyDecay(state);
-  engine.saveState(state);
-
+function enrichState(state) {
   const stage = engine.getStage(state.lifetimeTokens);
-  const mood = engine.getMood(state.hunger, state.happiness);
+  const mood = engine.getMood(state.energy, state.focus);
   const evolution = engine.getEvolution(state.lifetimeTokens);
   const fire = engine.streakFire(state.streakDays || 0);
 
   return {
     name: state.name,
-    hunger: Math.round(state.hunger * 10) / 10,
-    happiness: Math.round(state.happiness * 10) / 10,
     energy: Math.round(state.energy * 10) / 10,
+    focus: Math.round(state.focus * 10) / 10,
     lifetimeTokens: state.lifetimeTokens,
     streakDays: state.streakDays || 0,
     bestStreak: state.bestStreak || 0,
@@ -40,6 +30,18 @@ function getEnrichedState() {
     color: state.color || 'slime',
     onboarded: !!state.onboarded,
   };
+}
+
+function getEnrichedState() {
+  let state = engine.loadState();
+  if (!state) {
+    state = engine.createDefaultState();
+    engine.saveState(state);
+  }
+  engine.updateStreak(state);
+  engine.applyDecay(state);
+  engine.saveState(state);
+  return enrichState(state);
 }
 
 function jsonResponse(res, data, status = 200) {
@@ -83,10 +85,11 @@ const server = http.createServer(async (req, res) => {
     if (!state) return jsonResponse(res, { error: 'No pet found' }, 404);
     engine.updateStreak(state);
     engine.applyDecay(state);
-    state.hunger = engine.clamp(state.hunger + 25);
+    state.energy = engine.clamp(state.energy + 25);
+    state.focus = engine.clamp(state.focus - 15);
     state.lifetimeTokens += 25;
     engine.saveState(state);
-    jsonResponse(res, getEnrichedState());
+    jsonResponse(res, enrichState(state));
     return;
   }
 
@@ -98,7 +101,7 @@ const server = http.createServer(async (req, res) => {
     if (body.color) state.color = body.color;
     state.onboarded = true;
     engine.saveState(state);
-    jsonResponse(res, getEnrichedState());
+    jsonResponse(res, enrichState(state));
     return;
   }
 
@@ -109,7 +112,7 @@ const server = http.createServer(async (req, res) => {
     if (body.color) state.color = body.color;
     if (body.name) state.name = body.name;
     engine.saveState(state);
-    jsonResponse(res, getEnrichedState());
+    jsonResponse(res, enrichState(state));
     return;
   }
 
@@ -120,13 +123,12 @@ const server = http.createServer(async (req, res) => {
     engine.applyDecay(state);
     if (state.energy < 10) {
       engine.saveState(state);
-      return jsonResponse(res, { ...getEnrichedState(), message: 'Too tired to play!' });
+      return jsonResponse(res, { ...enrichState(state), message: 'Too tired to play!' });
     }
-    state.happiness = engine.clamp(state.happiness + 20);
+    state.focus = engine.clamp(state.focus + 15);
     state.energy = engine.clamp(state.energy - 15);
-    state.hunger = engine.clamp(state.hunger - 5);
     engine.saveState(state);
-    jsonResponse(res, getEnrichedState());
+    jsonResponse(res, enrichState(state));
     return;
   }
 

@@ -67,12 +67,12 @@ function getStage(lifetimeTokens) {
   return stage;
 }
 
-// ─── Mood from avg(hunger, happiness) ───
-function getMood(hunger, happiness) {
-  const avg = (hunger + happiness) / 2;
+// ─── Mood from avg(energy, focus) ───
+function getMood(energy, focus) {
+  const avg = (energy + focus) / 2;
   if (avg >= 70) return 'happy';
   if (avg >= 40) return 'neutral';
-  if (avg >= 20) return 'hungry';
+  if (avg >= 20) return 'tired';
   return 'sad';
 }
 
@@ -86,6 +86,9 @@ function migrateState(state) {
   if (state.milestones === undefined) state.milestones = [];
   if (state.color === undefined) state.color = 'slime';
   // onboarded: undefined means needs onboarding (pick name + color)
+
+  // Migration: hunger/happiness → focus
+  if (state.focus === undefined) state.focus = state.hunger ?? 50;
 
   // Migration: add activeDays tracking
   if (state.activeDaysSet === undefined) {
@@ -169,31 +172,31 @@ const ART = {
   egg: {
     happy:   ['      __', '    /    \\', '   |  · · |', '    \\____/'],
     neutral: ['      __', '    /    \\', '   |  · · |', '    \\____/'],
-    hungry:  ['      __', '    /    \\', '   |  · · |', '    \\____/'],
+    tired:   ['      __', '    /    \\', '   |  · · |', '    \\____/'],
     sad:     ['      __', '    /    \\', '   |  · · |', '    \\____/'],
   },
   baby: {
     happy:   ['     _.-._', '    / ^_^ \\', '   |       |', '    \\_____/'],
     neutral: ['     _.-._', '    / o_o \\', '   |       |', '    \\_____/'],
-    hungry:  ['     _.-._', '    / >_< \\', '   |       |', '    \\_____/'],
+    tired:   ['     _.-._', '    / >_< \\', '   |       |', '    \\_____/'],
     sad:     ['     _.-._', '    / ;_; \\', '   |       |', '    \\_____/'],
   },
   teen: {
     happy:   ['      _.---._', '     / ^   ^ \\', '    |    u    |', '    |         |', '     \\_______/'],
     neutral: ['      _.---._', '     / o   o \\', '    |    _    |', '    |         |', '     \\_______/'],
-    hungry:  ['      _.---._', '     / >   < \\', '    |    ~    |', '    |         |', '     \\_______/'],
+    tired:   ['      _.---._', '     / >   < \\', '    |    ~    |', '    |         |', '     \\_______/'],
     sad:     ['      _.---._', '     / ;   ; \\', '    |    n    |', '    |         |', '     \\_______/'],
   },
   adult: {
     happy:   ['       _.------._', '      / ^      ^ \\', '    (      \\_/     )', '    (              )', '     \\            /', "      '----------'"],
     neutral: ['       _.------._', '      / o      o \\', '    (      __     )', '    (              )', '     \\            /', "      '----------'"],
-    hungry:  ['       _.------._', '      / >      < \\', '    (      ~~     )', '    (              )', '     \\            /', "      '----------'"],
+    tired:   ['       _.------._', '      / >      < \\', '    (      ~~     )', '    (              )', '     \\            /', "      '----------'"],
     sad:     ['       _.------._', '      / ;      ; \\', '    (      __     )', '    (       |      )', '     \\            /', "      '----------'"],
   },
   elder: {
     happy:   ['          ~*~*~*~', '        _.--------._', '   ~   / ^        ^ \\   ~', '      (      \\_/      )', '      (               )', '       \\             /', "        '-----------'"],
     neutral: ['          ~*~*~*~', '        _.--------._', '   ~   / o        o \\   ~', '      (      __      )', '      (               )', '       \\             /', "        '-----------'"],
-    hungry:  ['          ~*~*~*~', '        _.--------._', '   ~   / >        < \\   ~', '      (      ~~      )', '      (               )', '       \\             /', "        '-----------'"],
+    tired:   ['          ~*~*~*~', '        _.--------._', '   ~   / >        < \\   ~', '      (      ~~      )', '      (               )', '       \\             /', "        '-----------'"],
     sad:     ['          ~*~*~*~', '        _.--------._', '   ~   / ;        ; \\   ~', '      (      __      )', '      (       |       )', '       \\             /', "        '-----------'"],
   },
 };
@@ -202,7 +205,7 @@ const ART = {
 function getFloatingElement(mood, energy) {
   if (energy < 30) return `${c.gy}z z Z${c.r}`;
   if (mood === 'happy') return `${c.bm}♪${c.r}`;
-  if (mood === 'hungry') return `${c.by}...${c.r}`;
+  if (mood === 'tired') return `${c.by}...${c.r}`;
   if (mood === 'sad') return `${c.bc},${c.r}`;
   return '';
 }
@@ -215,8 +218,8 @@ function buildScene(stage, mood, state) {
   const aura = getAuraLine(stage, state.milestones);
   if (aura) lines.push(aura);
 
-  // Hearts row (happiness: filled vs empty, 5 total)
-  const filledCount = Math.min(5, Math.ceil(state.happiness / 20));
+  // Hearts row (focus: filled vs empty, 5 total)
+  const filledCount = Math.min(5, Math.ceil(state.focus / 20));
   const hearts = [];
   for (let i = 0; i < 5; i++) {
     hearts.push(i < filledCount ? `${c.br}♥${c.r}` : `${c.gy}♡${c.r}`);
@@ -256,10 +259,10 @@ const FLAVOR = {
       '  A warm little egg.',
       '  Patience...',
     ],
-    hungry: [
+    tired: [
       '  The shell trembles...',
       '  Needs warmth to grow...',
-      '  Feed to help it hatch!',
+      '  Feeling drowsy inside...',
     ],
     sad: [
       '  The egg feels cold...',
@@ -278,10 +281,10 @@ const FLAVOR = {
       '  Watching you code quietly.',
       '  Calm and content.',
     ],
-    hungry: [
-      '  Tummy is rumbling...',
-      '  Feed me with tool calls!',
-      '  A snack would be nice...',
+    tired: [
+      '  Feeling drowsy...',
+      '  Could use a break...',
+      '  Eyes getting heavy...',
     ],
     sad: [
       '  Misses you...',
@@ -300,10 +303,10 @@ const FLAVOR = {
       '  Quietly learning.',
       '  Steady as she goes.',
     ],
-    hungry: [
-      '  Could really go for some commits...',
-      '  Running on empty here!',
-      '  Need fuel for growth!',
+    tired: [
+      '  Losing focus...',
+      '  Running on fumes here!',
+      '  Could use a break...',
     ],
     sad: [
       '  Feeling forgotten...',
@@ -322,10 +325,10 @@ const FLAVOR = {
       '  Wisdom comes with experience.',
       '  Standing guard over the repo.',
     ],
-    hungry: [
-      '  Even veterans need fuel...',
-      '  The old hunger returns.',
-      '  Feed the beast!',
+    tired: [
+      '  Even veterans need rest...',
+      '  The fatigue sets in.',
+      '  Could use a break...',
     ],
     sad: [
       '  Even the strongest feel low sometimes.',
@@ -344,10 +347,10 @@ const FLAVOR = {
       '  Seen a thousand repos.',
       '  Time moves differently here.',
     ],
-    hungry: [
-      '  Even legends need sustenance...',
-      '  The eternal hunger...',
-      '  One more token for the ages...',
+    tired: [
+      '  Even legends need rest...',
+      '  The eternal drowsiness...',
+      '  Eyelids growing heavy...',
     ],
     sad: [
       '  Heavy is the crown...',
@@ -370,7 +373,7 @@ function statColor(value) {
 }
 
 function moodColor(mood) {
-  return { happy: c.bg, neutral: c.by, hungry: c.by, sad: c.br }[mood];
+  return { happy: c.bg, neutral: c.by, tired: c.by, sad: c.br }[mood];
 }
 
 function statBar(value, width = 10) {
@@ -429,9 +432,8 @@ function saveState(state) {
 function createDefaultState(name) {
   return {
     name: name || 'Pixel',
-    hunger: 50,
-    happiness: 50,
     energy: 50,
+    focus: 50,
     lifetimeTokens: 0,
     lastUpdate: Date.now(),
     born: Date.now(),
@@ -444,25 +446,18 @@ function createDefaultState(name) {
   };
 }
 
-// ─── Apply time-based decay (streak reduces decay) ───
+// ─── Apply time-based changes (energy recovers, focus decays) ───
 function applyDecay(state) {
   const now = Date.now();
   const hours = (now - state.lastUpdate) / (1000 * 60 * 60);
   if (hours < 0.01) return state; // skip tiny intervals
 
   const streakMult = getStreakDecayMultiplier(state.streakDays || 0);
-  let hungerDecay = 5 * hours * streakMult;
-  let happinessDecay = 3 * hours * streakMult;
-  const energyDecay = 4 * hours * streakMult;
+  const energyRecovery = 5 * hours;            // rest restores energy
+  const focusDecay = 6 * hours * streakMult;    // focus fades when idle
 
-  // If hunger hits 0, happiness decays 2x faster
-  if (state.hunger <= 0) {
-    happinessDecay *= 2;
-  }
-
-  state.hunger = clamp(state.hunger - hungerDecay);
-  state.happiness = clamp(state.happiness - happinessDecay);
-  state.energy = clamp(state.energy - energyDecay);
+  state.energy = clamp(state.energy + energyRecovery);
+  state.focus = clamp(state.focus - focusDecay);
   state.lastUpdate = now;
 
   return state;
@@ -498,9 +493,8 @@ const actions = {
 
     updateStreak(state);
     applyDecay(state);
-    state.hunger = clamp(state.hunger + amount * 0.3);
-    state.happiness = clamp(state.happiness + amount * 0.1);
-    state.energy = clamp(state.energy + amount * 0.05);
+    state.focus = clamp(state.focus + amount * 0.15);
+    state.energy = clamp(state.energy - amount * 0.10);
     state.lifetimeTokens += amount;
     saveState(state);
   },
@@ -521,7 +515,7 @@ const actions = {
     saveState(state);
 
     const stage = getStage(state.lifetimeTokens);
-    const mood = getMood(state.hunger, state.happiness);
+    const mood = getMood(state.energy, state.focus);
     const stageLabel = stage.charAt(0).toUpperCase() + stage.slice(1);
     const moodLabel = mood.charAt(0).toUpperCase() + mood.slice(1);
     const mc = moodColor(mood);
@@ -558,9 +552,8 @@ const actions = {
 
     // ── Stat bars ──
     const p = (n) => String(Math.round(n)).padStart(3);
-    lines.push(`  Hunger     ${statBar(state.hunger)}  ${statColor(state.hunger)}${p(state.hunger)}%${c.r}`);
-    lines.push(`  Happiness  ${statBar(state.happiness)}  ${statColor(state.happiness)}${p(state.happiness)}%${c.r}`);
     lines.push(`  Energy     ${statBar(state.energy)}  ${statColor(state.energy)}${p(state.energy)}%${c.r}`);
+    lines.push(`  Focus      ${statBar(state.focus)}  ${statColor(state.focus)}${p(state.focus)}%${c.r}`);
     lines.push('');
 
     // ── Evolution progress ──
@@ -589,10 +582,10 @@ const actions = {
     updateStreak(state);
     applyDecay(state);
     saveState(state);
-    const mood = getMood(state.hunger, state.happiness);
-    const face = { happy: '^_^', neutral: 'o_o', hungry: '>_<', sad: 'T_T' }[mood];
+    const mood = getMood(state.energy, state.focus);
+    const face = { happy: '^_^', neutral: 'o_o', tired: '>_<', sad: 'T_T' }[mood];
     const fire = (state.streakDays || 0) > 0 ? ` 🔥${state.streakDays}` : '';
-    process.stderr.write(`(${face}) ${state.name}: H:${Math.round(state.hunger)}% J:${Math.round(state.happiness)}% E:${Math.round(state.energy)}%${fire}\n`);
+    process.stderr.write(`(${face}) ${state.name}: E:${Math.round(state.energy)}% F:${Math.round(state.focus)}%${fire}\n`);
   },
 
   play() {
@@ -608,20 +601,19 @@ const actions = {
       return;
     }
 
-    state.happiness = clamp(state.happiness + 20);
+    state.focus = clamp(state.focus + 15);
     state.energy = clamp(state.energy - 15);
-    state.hunger = clamp(state.hunger - 5);
     saveState(state);
 
     const stage = getStage(state.lifetimeTokens);
-    const mood = getMood(state.hunger, state.happiness);
+    const mood = getMood(state.energy, state.focus);
     const scene = buildScene(stage, mood, state);
 
     const lines = [''];
     for (const line of scene) lines.push(`  ${line}`);
     lines.push('');
-    lines.push(`  ${c.bg}+20 Happiness${c.r}  ${c.br}-15 Energy${c.r}  ${c.by}-5 Hunger${c.r}`);
-    lines.push(`  ${c.d}${state.name} had fun playing!${c.r}`);
+    lines.push(`  ${c.bg}+15 Focus${c.r}  ${c.br}-15 Energy${c.r}`);
+    lines.push(`  ${c.d}${state.name} took a break and refocused!${c.r}`);
     lines.push('');
     console.log(lines.join('\n'));
   },
@@ -632,18 +624,19 @@ const actions = {
 
     updateStreak(state);
     applyDecay(state);
-    state.hunger = clamp(state.hunger + 25);
+    state.energy = clamp(state.energy + 25);
+    state.focus = clamp(state.focus - 15);
     state.lifetimeTokens += 25;
     saveState(state);
 
     const stage = getStage(state.lifetimeTokens);
-    const mood = getMood(state.hunger, state.happiness);
+    const mood = getMood(state.energy, state.focus);
     const scene = buildScene(stage, mood, state);
 
     const lines = [''];
     for (const line of scene) lines.push(`  ${line}`);
     lines.push('');
-    lines.push(`  ${c.bg}+25 Hunger${c.r}  ${c.d}nom nom nom${c.r}`);
+    lines.push(`  ${c.bg}+25 Energy${c.r}  ${c.br}-15 Focus${c.r}  ${c.d}snack break!${c.r}`);
     lines.push('');
     console.log(lines.join('\n'));
   },
