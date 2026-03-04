@@ -51,10 +51,10 @@ function getYesterday() {
 // ─── Evolution stages (dual-gated: active days + tokens) ───
 const STAGES = [
   { name: 'egg',   minTokens: 0 },
-  { name: 'baby',  minTokens: 100 },
-  { name: 'teen',  minTokens: 1500 },
-  { name: 'adult', minTokens: 8000 },
-  { name: 'elder', minTokens: 25000 },
+  { name: 'baby',  minTokens: 500 },
+  { name: 'teen',  minTokens: 5000 },
+  { name: 'adult', minTokens: 20000 },
+  { name: 'elder', minTokens: 60000 },
 ];
 
 function getStage(lifetimeTokens) {
@@ -453,8 +453,8 @@ function applyDecay(state) {
   if (hours < 0.01) return state; // skip tiny intervals
 
   const streakMult = getStreakDecayMultiplier(state.streakDays || 0);
-  const energyRecovery = 5 * hours;            // rest restores energy
-  const focusDecay = 6 * hours * streakMult;    // focus fades when idle
+  const energyRecovery = 5 * hours;            // rest restores energy (~20hrs full recharge)
+  const focusDecay = 4 * hours * streakMult;    // focus fades when idle (~25hrs full decay)
 
   state.energy = clamp(state.energy + energyRecovery);
   state.focus = clamp(state.focus - focusDecay);
@@ -493,8 +493,8 @@ const actions = {
 
     updateStreak(state);
     applyDecay(state);
-    state.focus = clamp(state.focus + amount * 0.15);
-    state.energy = clamp(state.energy - amount * 0.10);
+    state.focus = clamp(state.focus + amount * 0.003);
+    state.energy = clamp(state.energy - amount * 0.004);
     state.lifetimeTokens += amount;
     saveState(state);
   },
