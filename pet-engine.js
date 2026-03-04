@@ -411,6 +411,29 @@ function getEvolution(lifetimeTokens) {
   };
 }
 
+// ─── Cooldowns (ms) ───
+const COOLDOWNS = {
+  play: 30 * 60 * 1000,        // 30 minutes
+  'manual-feed': 30 * 60 * 1000, // 30 minutes
+};
+
+function getCooldownRemaining(state, action) {
+  const key = `last${action.charAt(0).toUpperCase() + action.slice(1).replace(/-./g, m => m[1].toUpperCase())}Time`;
+  const last = state[key] || 0;
+  const remaining = COOLDOWNS[action] - (Date.now() - last);
+  return remaining > 0 ? remaining : 0;
+}
+
+function formatCooldown(ms) {
+  const mins = Math.ceil(ms / 60000);
+  return mins === 1 ? '1 minute' : `${mins} minutes`;
+}
+
+function setCooldown(state, action) {
+  const key = `last${action.charAt(0).toUpperCase() + action.slice(1).replace(/-./g, m => m[1].toUpperCase())}Time`;
+  state[key] = Date.now();
+}
+
 // ─── Clamp helper ───
 function clamp(val, min = 0, max = 100) {
   return Math.max(min, Math.min(max, val));
@@ -595,6 +618,13 @@ const actions = {
     updateStreak(state);
     applyDecay(state);
 
+    const cooldown = getCooldownRemaining(state, 'play');
+    if (cooldown > 0) {
+      console.log(`${state.name} needs a break! Try again in ${formatCooldown(cooldown)}.`);
+      saveState(state);
+      return;
+    }
+
     if (state.energy < 10) {
       console.log(`${state.name} is too tired to play! Let them rest.`);
       saveState(state);
@@ -603,6 +633,7 @@ const actions = {
 
     state.focus = clamp(state.focus + 15);
     state.energy = clamp(state.energy - 15);
+    setCooldown(state, 'play');
     saveState(state);
 
     const stage = getStage(state.lifetimeTokens);
@@ -624,9 +655,18 @@ const actions = {
 
     updateStreak(state);
     applyDecay(state);
+
+    const cooldown = getCooldownRemaining(state, 'manual-feed');
+    if (cooldown > 0) {
+      console.log(`${state.name} isn't hungry yet! Try again in ${formatCooldown(cooldown)}.`);
+      saveState(state);
+      return;
+    }
+
     state.energy = clamp(state.energy + 25);
     state.focus = clamp(state.focus - 15);
     state.lifetimeTokens += 25;
+    setCooldown(state, 'manual-feed');
     saveState(state);
 
     const stage = getStage(state.lifetimeTokens);
