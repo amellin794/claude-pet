@@ -47,7 +47,7 @@ app.on('ready', async () => {
     index: SERVER_URL,
     browserWindow: {
       width: 320,
-      height: 520,
+      height: 460,
       resizable: false,
       skipTaskbar: true,
       webPreferences: {
