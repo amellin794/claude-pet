@@ -425,6 +425,8 @@
   .toast-feed { background: #22c55e22; color: #4ade80; border: 1px solid #22c55e30; }
   .toast-play { background: #3b82f622; color: #60a5fa; border: 1px solid #3b82f630; }
   .toast-warn { background: #f59e0b22; color: #fbbf24; border: 1px solid #f59e0b30; }
+  .toast-pat { background: #fb718522; color: #fb7185; border: 1px solid #fb718530; }
+  .toast-event { background: #fbbf2422; color: #fbbf24; border: 1px solid #fbbf2430; }
 
   /* ═══════════════════════════════════════════════
      ANIMATIONS
@@ -571,6 +573,62 @@
     0%, 100% { opacity: 0.15; }
     50% { opacity: 0.3; }
   }
+
+  @keyframes heart-float {
+    0% { transform: translate(0, 0) scale(1); opacity: 0.9; }
+    100% { transform: translate(var(--hx, 5px), -30px) scale(0.5); opacity: 0; }
+  }
+
+  @keyframes welcome-slide {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .welcome-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at center, #0a0e14ee 0%, #0a0e14 70%);
+    animation: evo-fade-in 0.4s ease;
+    cursor: pointer;
+  }
+
+  .welcome-overlay .welcome-title {
+    font-size: 24px;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent), #fff 40%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: welcome-slide 0.5s ease both;
+    animation-delay: 0.2s;
+    opacity: 0;
+  }
+
+  .welcome-overlay .welcome-sub {
+    font-size: 14px;
+    color: var(--text-dim);
+    margin-top: 6px;
+    animation: welcome-slide 0.5s ease both;
+    animation-delay: 0.4s;
+    opacity: 0;
+  }
+
+  .welcome-overlay .welcome-boost {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-top: 14px;
+    animation: welcome-slide 0.5s ease both;
+    animation-delay: 0.6s;
+    opacity: 0;
+  }
+
+  .scene-svg #blobGroup { cursor: pointer; }
 </style>
 </head>
 <body>
@@ -685,11 +743,15 @@
     <div class="buttons">
       <button class="btn" id="feedBtn" onclick="doFeed()">
         <span class="btn-main"><span class="btn-icon">&#127829;</span> Feed</span>
-        <span class="btn-cost">+25 energy · -15 focus</span>
+        <span class="btn-cost" id="feedCost">+25 energy · -15 focus</span>
+      </button>
+      <button class="btn" id="patBtn" onclick="doPat()">
+        <span class="btn-main"><span class="btn-icon">&#128150;</span> Pat</span>
+        <span class="btn-cost" id="patCost">+3 focus · no cooldown</span>
       </button>
       <button class="btn" id="playBtn" onclick="doPlay()">
         <span class="btn-main"><span class="btn-icon">&#127918;</span> Play</span>
-        <span class="btn-cost">+15 focus · -15 energy</span>
+        <span class="btn-cost" id="playCost">+15 focus · -15 energy</span>
       </button>
     </div>
 
@@ -787,6 +849,14 @@ function makeFace(mood, oy, fc, stage) {
         <animate attributeName="cy" values="${-4+oy};${18+oy}" dur="2.5s" repeatCount="indefinite"/>
         <animate attributeName="opacity" values="0.5;0" dur="2.5s" repeatCount="indefinite"/>
       </circle>`,
+    neglected: `
+      <line x1="-11" y1="${-12+oy}" x2="-5" y2="${-8+oy}" stroke="${fc}" stroke-width="${sw}" stroke-linecap="round"/>
+      <line x1="5" y1="${-8+oy}" x2="11" y2="${-12+oy}" stroke="${fc}" stroke-width="${sw}" stroke-linecap="round"/>
+      <path d="M-5,${4+oy} Q0,${0+oy} 5,${4+oy}" stroke="${fc}" stroke-width="${sw2}" fill="none" stroke-linecap="round"/>
+      <circle cx="14" cy="${-2+oy}" r="2" fill="#64748b" opacity="0.4">
+        <animate attributeName="cy" values="${-2+oy};${14+oy}" dur="3s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.4;0" dur="3s" repeatCount="indefinite"/>
+      </circle>`,
   };
   return faces[mood] || faces.neutral;
 }
@@ -800,30 +870,35 @@ const FLAVOR = {
     neutral: ['Resting quietly...', 'A warm little egg', 'Patience...', 'The shell hums softly'],
     tired:   ['The shell trembles...', 'Needs warmth to grow', 'Feeling drowsy inside...', 'A faint rumble inside'],
     sad:     ['The egg feels cold...', 'So alone in here...', '*faint tapping from inside*', 'Waiting for a friend...'],
+    neglected: ['The egg grows cold...', '*feeble tapping*', 'Almost forgotten...'],
   },
   baby: {
     happy:   ['Just vibing in the terminal', 'Small but mighty!', 'Happy little hacker', 'Living the newborn life'],
     neutral: ['Watching you type...', 'Contemplating semicolons', 'Absorbing knowledge', 'What does this function do?'],
     tired:   ['Feeling drowsy...', 'Could use a break...', 'Eyes getting heavy...', 'Losing focus...'],
     sad:     ['Come back soon...', 'The terminal feels empty', '*sad beeping noises*', 'Missing you...'],
+    neglected: ['Feeling neglected...', '*whimpers softly*', 'Has anyone been here?'],
   },
   teen: {
     happy:   ['Feeling unstoppable!', 'Code goes brrr', 'Ship it!', 'Ready to refactor the world'],
     neutral: ['Contemplating the codebase...', 'Steady progress', 'Another commit, another day', 'Watching the CI run'],
     tired:   ['Losing focus...', 'Running on fumes here!', 'Could use a break...', 'The code blurs together'],
     sad:     ['The code feels far away...', 'No PRs in ages', '*teenage angst intensifies*', 'Remember when we shipped?'],
+    neglected: ['Left on read...', 'The terminal gathers dust...', '*stares at blank screen*'],
   },
   adult: {
     happy:   ['Peak performance!', 'Battle-tested and thriving', '10x developer energy', 'A true coding companion'],
     neutral: ['Steady and reliable', 'Wisdom comes with tokens', 'Standing guard over the repo', 'Another day, another deploy'],
     tired:   ['Even veterans need rest...', 'The fatigue sets in', 'Could use a break...', 'Running low on steam'],
     sad:     ['Even the strongest feel low', 'Remember the good times...', '*stares into the void of unused imports*', 'The void stares back'],
+    neglected: ['A shadow of former glory...', 'The repo grows silent...', '*dust settles on the keyboard*'],
   },
   elder: {
     happy:   ['Transcendent coding energy!', 'Ascended beyond mere bugs', 'The code flows through me', 'One with the repository'],
     neutral: ['Ancient wisdom, quiet power', 'Seen a thousand repos', 'Time moves differently here', 'The eternal watcher'],
     tired:   ['Even legends need rest...', 'The eternal drowsiness...', 'Eyelids growing heavy...', 'A cosmic weariness'],
     sad:     ['Heavy is the crown...', 'The weight of all those commits', 'Contemplating the void between keystrokes', 'Even stars grow dim'],
+    neglected: ['Even legends can be forgotten...', 'The ancient one waits...', '*a cosmic loneliness*'],
   },
 };
 
@@ -948,7 +1023,7 @@ function render(s) {
   if (s.stage !== prev.stage || s.mood !== prev.mood) {
     const stageText = s.stage.charAt(0).toUpperCase() + s.stage.slice(1);
     const moodText = s.mood.charAt(0).toUpperCase() + s.mood.slice(1);
-    const moodEmoji = { happy: '\u{1F60A}', neutral: '\u{1F610}', tired: '\u{1F62A}', sad: '\u{1F622}' }[s.mood] || '';
+    const moodEmoji = { happy: '\u{1F60A}', neutral: '\u{1F610}', tired: '\u{1F62A}', sad: '\u{1F622}', neglected: '\u{1F912}' }[s.mood] || '';
     const meta = document.getElementById('petMeta');
     meta.className = 'pet-meta mood-' + s.mood;
     document.getElementById('stageLabel').textContent = stageText;
@@ -992,7 +1067,13 @@ function render(s) {
   if (s.mood !== prev.mood || energyLow !== prev.energyLow || s.color !== prev.color) {
     const fg = document.getElementById('floaters');
     let fHtml = '';
-    if (energyLow) {
+    if (s.mood === 'neglected') {
+      // Gray wilting dots for neglected
+      for (let i = 0; i < 3; i++) {
+        fHtml += `<circle cx="${188+i*12}" cy="${95-i*4}" r="2" fill="#475569" opacity="0.3"
+          style="animation: dots-pulse 2.5s ease-in-out infinite; animation-delay: ${i*0.5}s;"/>`;
+      }
+    } else if (energyLow) {
       const chars = ['z', 'z', 'Z'];
       for (let i = 0; i < 3; i++) {
         fHtml += `<text x="${194+i*13}" y="${90-i*11}" fill="#475569" font-size="${12+i*4}" font-weight="bold"
@@ -1207,11 +1288,61 @@ function triggerAnim(name) {
   bg.style.animation = name + ' ' + dur + ' ease, breathe 3.5s ease-in-out infinite ' + dur;
 }
 
+// ─── Cooldown timers ───
+let feedCDTimer = null, playCDTimer = null;
+
+function formatCDTime(ms) {
+  const mins = Math.floor(ms / 60000);
+  const secs = Math.floor((ms % 60000) / 1000);
+  return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+}
+
+function startCooldownTimer(action, remainingMs) {
+  const btn = document.getElementById(action === 'feed' ? 'feedBtn' : 'playBtn');
+  const cost = document.getElementById(action === 'feed' ? 'feedCost' : 'playCost');
+  const defaultCost = action === 'feed' ? '+25 energy \xb7 -15 focus' : '+15 focus \xb7 -15 energy';
+  const timerRef = action === 'feed' ? 'feedCDTimer' : 'playCDTimer';
+
+  if (action === 'feed' && feedCDTimer) clearInterval(feedCDTimer);
+  if (action === 'play' && playCDTimer) clearInterval(playCDTimer);
+
+  if (remainingMs <= 0) {
+    btn.disabled = false;
+    cost.textContent = defaultCost;
+    return;
+  }
+
+  btn.disabled = true;
+  let left = remainingMs;
+  cost.textContent = formatCDTime(left);
+
+  const iv = setInterval(() => {
+    left -= 1000;
+    if (left <= 0) {
+      clearInterval(iv);
+      btn.disabled = false;
+      cost.textContent = defaultCost;
+    } else {
+      cost.textContent = formatCDTime(left);
+    }
+  }, 1000);
+
+  if (action === 'feed') feedCDTimer = iv;
+  else playCDTimer = iv;
+}
+
+function syncCooldowns(state) {
+  if (state.feedCooldown > 0) startCooldownTimer('feed', state.feedCooldown);
+  else startCooldownTimer('feed', 0);
+  if (state.playCooldown > 0) startCooldownTimer('play', state.playCooldown);
+  else startCooldownTimer('play', 0);
+}
+
 // ─── API ───
 let feedCD = false, playCD = false;
 
 async function doFeed() {
-  if (feedCD) return;
+  if (feedCD || document.getElementById('feedBtn').disabled) return;
   feedCD = true;
   document.getElementById('feedBtn').disabled = true;
   try {
@@ -1219,18 +1350,28 @@ async function doFeed() {
     const d = await r.json();
     currentState = d;
     render(d);
-    showReaction('feed');
-    triggerAnim('squish');
-    spawnParticles('feed');
-    showToast('Snack time! +25 energy -15 focus \u{1F355}', 'feed');
+    if (d.message) {
+      showToast(d.message + ' \u{1F355}', 'warn');
+      syncCooldowns(d);
+    } else {
+      showReaction('feed');
+      triggerAnim('squish');
+      spawnParticles('feed');
+      if (d.event && d.event.type === 'treat') {
+        showToast('\u2728 Found a treat! Double energy! \u{1F355}', 'event');
+      } else {
+        showToast('Snack time! +25 energy -15 focus \u{1F355}', 'feed');
+      }
+      syncCooldowns(d);
+    }
   } catch {
     showToast('Feed failed!', 'warn');
   }
-  setTimeout(() => { feedCD = false; document.getElementById('feedBtn').disabled = false; }, 1200);
+  setTimeout(() => { feedCD = false; }, 1200);
 }
 
 async function doPlay() {
-  if (playCD) return;
+  if (playCD || document.getElementById('playBtn').disabled) return;
   playCD = true;
   document.getElementById('playBtn').disabled = true;
   try {
@@ -1240,16 +1381,95 @@ async function doPlay() {
     render(d);
     if (d.message) {
       showToast(d.message + ' \u{1F4A4}', 'warn');
+      syncCooldowns(d);
     } else {
       showReaction('play');
       triggerAnim('bounce');
       spawnParticles('play');
-      showToast('+15 focus  -15 energy \u{1F3AE}', 'play');
+      if (d.event && d.event.type === 'trick') {
+        showToast(`\u2728 ${d.event.message} \u{1F3AE}`, 'event');
+      } else {
+        showToast('+15 focus  -15 energy \u{1F3AE}', 'play');
+      }
+      syncCooldowns(d);
     }
   } catch {
     showToast('Play failed!', 'warn');
   }
-  setTimeout(() => { playCD = false; document.getElementById('playBtn').disabled = false; }, 1200);
+  setTimeout(() => { playCD = false; }, 1200);
+}
+
+// ─── Pat interaction (click blob) ───
+let patCD = false;
+
+function spawnHearts() {
+  const pg = document.getElementById('particles');
+  let html = '';
+  for (let i = 0; i < 5; i++) {
+    const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2;
+    const dist = 30 + Math.random() * 20;
+    const ex = 150 + Math.cos(angle) * dist;
+    const ey = 115 + Math.sin(angle) * dist - 15;
+    const d = (i * 0.04).toFixed(2);
+    html += `<text font-size="16" text-anchor="middle" fill="#fb7185">
+      <animate attributeName="x" from="150" to="${ex.toFixed(0)}" dur="0.5s" begin="${d}s" fill="freeze"/>
+      <animate attributeName="y" from="115" to="${ey.toFixed(0)}" dur="0.5s" begin="${d}s" fill="freeze"/>
+      <animate attributeName="opacity" from="1" to="0" dur="0.5s" begin="${d}s" fill="freeze"/>
+      \u2764</text>`;
+  }
+  pg.innerHTML = html;
+  setTimeout(() => { pg.innerHTML = ''; }, 700);
+}
+
+async function doPat() {
+  if (patCD) return;
+  patCD = true;
+  try {
+    const r = await fetch('/api/pat', { method: 'POST' });
+    const d = await r.json();
+    currentState = d;
+    render(d);
+    spawnHearts();
+    triggerAnim('squish');
+    if (d.patGain > 0) {
+      showToast(`*pat pat* +${d.patGain} focus \u2764\uFE0F`, 'pat');
+    } else {
+      showToast('Overwhelmed! Try again later', 'warn');
+    }
+  } catch {
+    showToast('Pat failed!', 'warn');
+  }
+  setTimeout(() => { patCD = false; }, 600);
+}
+
+// Attach click handler to blob
+document.addEventListener('DOMContentLoaded', () => {
+  const bg = document.getElementById('blobGroup');
+  if (bg) bg.addEventListener('click', doPat);
+});
+
+// ─── Welcome-back overlay ───
+let welcomeShown = false;
+
+function showWelcomeBack(name) {
+  if (welcomeShown) return;
+  welcomeShown = true;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'welcome-overlay';
+  overlay.innerHTML = `
+    <div class="welcome-title">Welcome back!</div>
+    <div class="welcome-sub">${name} missed you</div>
+    <div class="welcome-boost">+10% focus</div>
+  `;
+  overlay.onclick = () => overlay.remove();
+  document.body.appendChild(overlay);
+
+  setTimeout(() => triggerAnim('bounce'), 300);
+  setTimeout(() => overlay.remove(), 3000);
+
+  // Acknowledge welcome-back
+  fetch('/api/welcome-ack', { method: 'POST' }).catch(() => {});
 }
 
 // ─── Tool-call pulse ───
@@ -1304,6 +1524,7 @@ async function poll() {
       document.getElementById('onboarding').style.display = 'none';
       document.getElementById('dashboard').style.display = 'flex';
       render(d);
+      syncCooldowns(d);
       if (!blinkTimer) startBlink();
 
       // Detect tool calls since last poll
@@ -1311,6 +1532,11 @@ async function poll() {
         toolPulse();
       }
       lastTokens = d.lifetimeTokens;
+
+      // Welcome-back
+      if (d.welcomeBackPending && !welcomeShown) {
+        showWelcomeBack(d.name);
+      }
 
       initialized = true;
     }

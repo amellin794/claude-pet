@@ -76,6 +76,13 @@ function getMood(energy, focus) {
   return 'sad';
 }
 
+function getEffectiveMood(state) {
+  if (state.focusLowSince && (Date.now() - state.focusLowSince) >= 24 * 60 * 60 * 1000) {
+    return 'neglected';
+  }
+  return getMood(state.energy, state.focus);
+}
+
 // ─── Streak system ───
 const STREAK_MILESTONES = [7, 30, 100];
 
@@ -109,6 +116,18 @@ function migrateState(state) {
     state.activeDays = state.activeDaysSet.length;
   }
   if (state.activeDays === undefined) state.activeDays = state.activeDaysSet.length;
+
+  // v2 fields: welcome-back, neglect, pat, expressions
+  if (state.welcomeBackPending === undefined) state.welcomeBackPending = false;
+  if (state.focusLowSince === undefined) state.focusLowSince = null;
+  if (state.patTimestamps === undefined) state.patTimestamps = [];
+  if (state.learnedExpressions === undefined) state.learnedExpressions = [];
+
+  // Formula v2 rebalance: reset broken focus from v1
+  if (state.formulaVersion === undefined || state.formulaVersion < 2) {
+    state.formulaVersion = 2;
+    state.focus = Math.max(state.focus, 50);
+  }
 
   return state;
 }
@@ -174,35 +193,41 @@ const ART = {
     neutral: ['      __', '    /    \\', '   |  · · |', '    \\____/'],
     tired:   ['      __', '    /    \\', '   |  · · |', '    \\____/'],
     sad:     ['      __', '    /    \\', '   |  · · |', '    \\____/'],
+    neglected: ['      __', '    /    \\', '   |  x x |', '    \\____/'],
   },
   baby: {
     happy:   ['     _.-._', '    / ^_^ \\', '   |       |', '    \\_____/'],
     neutral: ['     _.-._', '    / o_o \\', '   |       |', '    \\_____/'],
     tired:   ['     _.-._', '    / >_< \\', '   |       |', '    \\_____/'],
     sad:     ['     _.-._', '    / ;_; \\', '   |       |', '    \\_____/'],
+    neglected: ['     _.-._', '    / x_x \\', '   |       |', '    \\_____/'],
   },
   teen: {
     happy:   ['      _.---._', '     / ^   ^ \\', '    |    u    |', '    |         |', '     \\_______/'],
     neutral: ['      _.---._', '     / o   o \\', '    |    _    |', '    |         |', '     \\_______/'],
     tired:   ['      _.---._', '     / >   < \\', '    |    ~    |', '    |         |', '     \\_______/'],
     sad:     ['      _.---._', '     / ;   ; \\', '    |    n    |', '    |         |', '     \\_______/'],
+    neglected: ['      _.---._', '     / x   x \\', '    |    ~    |', '    |         |', '     \\_______/'],
   },
   adult: {
     happy:   ['       _.------._', '      / ^      ^ \\', '    (      \\_/     )', '    (              )', '     \\            /', "      '----------'"],
     neutral: ['       _.------._', '      / o      o \\', '    (      __     )', '    (              )', '     \\            /', "      '----------'"],
     tired:   ['       _.------._', '      / >      < \\', '    (      ~~     )', '    (              )', '     \\            /', "      '----------'"],
     sad:     ['       _.------._', '      / ;      ; \\', '    (      __     )', '    (       |      )', '     \\            /', "      '----------'"],
+    neglected: ['       _.------._', '      / x      x \\', '    (      ~~     )', '    (              )', '     \\            /', "      '----------'"],
   },
   elder: {
     happy:   ['          ~*~*~*~', '        _.--------._', '   ~   / ^        ^ \\   ~', '      (      \\_/      )', '      (               )', '       \\             /', "        '-----------'"],
     neutral: ['          ~*~*~*~', '        _.--------._', '   ~   / o        o \\   ~', '      (      __      )', '      (               )', '       \\             /', "        '-----------'"],
     tired:   ['          ~*~*~*~', '        _.--------._', '   ~   / >        < \\   ~', '      (      ~~      )', '      (               )', '       \\             /', "        '-----------'"],
     sad:     ['          ~*~*~*~', '        _.--------._', '   ~   / ;        ; \\   ~', '      (      __      )', '      (       |       )', '       \\             /', "        '-----------'"],
+    neglected: ['          ~*~*~*~', '        _.--------._', '   ~   / x        x \\   ~', '      (      ~~      )', '      (               )', '       \\             /', "        '-----------'"],
   },
 };
 
 // ─── Floating element based on state ───
 function getFloatingElement(mood, energy) {
+  if (mood === 'neglected') return `${c.gy}. . .${c.r}`;
   if (energy < 30) return `${c.gy}z z Z${c.r}`;
   if (mood === 'happy') return `${c.bm}♪${c.r}`;
   if (mood === 'tired') return `${c.by}...${c.r}`;
@@ -269,6 +294,11 @@ const FLAVOR = {
       '  So alone in here...',
       '  *faint tapping from inside*',
     ],
+    neglected: [
+      '  The egg grows cold...',
+      '  *feeble tapping*',
+      '  Almost forgotten...',
+    ],
   },
   baby: {
     happy: [
@@ -290,6 +320,11 @@ const FLAVOR = {
       '  Misses you...',
       '  Please come back and code...',
       '  *sad beeping noises*',
+    ],
+    neglected: [
+      '  Feeling neglected...',
+      '  *whimpers softly*',
+      '  Has anyone been here?',
     ],
   },
   teen: {
@@ -313,6 +348,11 @@ const FLAVOR = {
       '  The code feels far away.',
       '  *teenage angst intensifies*',
     ],
+    neglected: [
+      '  Left on read...',
+      '  The terminal gathers dust...',
+      '  *stares at blank screen*',
+    ],
   },
   adult: {
     happy: [
@@ -334,6 +374,11 @@ const FLAVOR = {
       '  Even the strongest feel low sometimes.',
       '  Remember the good times...',
       '  *stares into the void of unused imports*',
+    ],
+    neglected: [
+      '  A shadow of former glory...',
+      '  The repo grows silent...',
+      '  *dust settles on the keyboard*',
     ],
   },
   elder: {
@@ -357,6 +402,11 @@ const FLAVOR = {
       '  The weight of all those commits...',
       '  *contemplates the void between keystrokes*',
     ],
+    neglected: [
+      '  Even legends can be forgotten...',
+      '  The ancient one waits...',
+      '  *a cosmic loneliness*',
+    ],
   },
 };
 
@@ -373,7 +423,7 @@ function statColor(value) {
 }
 
 function moodColor(mood) {
-  return { happy: c.bg, neutral: c.by, tired: c.by, sad: c.br }[mood];
+  return { happy: c.bg, neutral: c.by, tired: c.by, sad: c.br, neglected: c.gy }[mood];
 }
 
 function statBar(value, width = 10) {
@@ -477,10 +527,24 @@ function applyDecay(state) {
 
   const streakMult = getStreakDecayMultiplier(state.streakDays || 0);
   const energyRecovery = 5 * hours;            // rest restores energy (~20hrs full recharge)
-  const focusDecay = 4 * hours * streakMult;    // focus fades when idle (~25hrs full decay)
+  const focusDecay = 2.5 * hours * streakMult;  // focus fades when idle (~40hrs full decay)
 
   state.energy = clamp(state.energy + energyRecovery);
   state.focus = clamp(state.focus - focusDecay);
+
+  // Welcome-back: returning after 8+ hours gets a focus boost
+  if (hours >= 8 && !state.welcomeBackPending) {
+    state.welcomeBackPending = true;
+    state.focus = clamp(state.focus + 10);
+  }
+
+  // Neglect tracking: monitor how long focus stays critically low
+  if (state.focus < 15) {
+    if (!state.focusLowSince) state.focusLowSince = now;
+  } else {
+    state.focusLowSince = null;
+  }
+
   state.lastUpdate = now;
 
   return state;
@@ -516,8 +580,8 @@ const actions = {
 
     updateStreak(state);
     applyDecay(state);
-    state.focus = clamp(state.focus + amount * 0.003);
-    state.energy = clamp(state.energy - amount * 0.004);
+    state.focus = clamp(state.focus + amount * 0.05);
+    state.energy = clamp(state.energy - amount * 0.008);
     state.lifetimeTokens += amount;
     saveState(state);
   },
@@ -538,7 +602,7 @@ const actions = {
     saveState(state);
 
     const stage = getStage(state.lifetimeTokens);
-    const mood = getMood(state.energy, state.focus);
+    const mood = getEffectiveMood(state);
     const stageLabel = stage.charAt(0).toUpperCase() + stage.slice(1);
     const moodLabel = mood.charAt(0).toUpperCase() + mood.slice(1);
     const mc = moodColor(mood);
@@ -604,9 +668,16 @@ const actions = {
     if (!state) return;
     updateStreak(state);
     applyDecay(state);
+
+    // Show welcome-back message and clear flag
+    if (state.welcomeBackPending) {
+      state.welcomeBackPending = false;
+      process.stderr.write(`Welcome back! ${state.name} missed you! (+10% focus)\n`);
+    }
+
     saveState(state);
-    const mood = getMood(state.energy, state.focus);
-    const face = { happy: '^_^', neutral: 'o_o', tired: '>_<', sad: 'T_T' }[mood];
+    const mood = getEffectiveMood(state);
+    const face = { happy: '^_^', neutral: 'o_o', tired: '>_<', sad: 'T_T', neglected: 'x_x' }[mood];
     const fire = (state.streakDays || 0) > 0 ? ` 🔥${state.streakDays}` : '';
     process.stderr.write(`(${face}) ${state.name}: E:${Math.round(state.energy)}% F:${Math.round(state.focus)}%${fire}\n`);
   },
@@ -631,19 +702,39 @@ const actions = {
       return;
     }
 
-    state.focus = clamp(state.focus + 15);
+    // Random event: 5% chance to learn expression
+    const EXPRESSIONS = ['wiggle', 'sparkle', 'bounce', 'dance', 'zen'];
+    const available = EXPRESSIONS.filter(e => !(state.learnedExpressions || []).includes(e));
+    const learnsExpression = Math.random() < 0.05 && available.length > 0;
+    const focusGain = learnsExpression ? 25 : 15;
+
+    state.focus = clamp(state.focus + focusGain);
     state.energy = clamp(state.energy - 15);
+    state.focusLowSince = null; // clear neglect on interaction
     setCooldown(state, 'play');
+
+    let learnedTrick = null;
+    if (learnsExpression) {
+      learnedTrick = available[Math.floor(Math.random() * available.length)];
+      if (!state.learnedExpressions) state.learnedExpressions = [];
+      state.learnedExpressions.push(learnedTrick);
+    }
+
     saveState(state);
 
     const stage = getStage(state.lifetimeTokens);
-    const mood = getMood(state.energy, state.focus);
+    const mood = getEffectiveMood(state);
     const scene = buildScene(stage, mood, state);
 
     const lines = [''];
     for (const line of scene) lines.push(`  ${line}`);
     lines.push('');
-    lines.push(`  ${c.bg}+15 Focus${c.r}  ${c.br}-15 Energy${c.r}`);
+    if (learnedTrick) {
+      lines.push(`  ${c.by}✨ Learned a new trick: ${learnedTrick}!${c.r}`);
+      lines.push(`  ${c.bg}+${focusGain} Focus${c.r}  ${c.br}-15 Energy${c.r}`);
+    } else {
+      lines.push(`  ${c.bg}+15 Focus${c.r}  ${c.br}-15 Energy${c.r}`);
+    }
     lines.push(`  ${c.d}${state.name} took a break and refocused!${c.r}`);
     lines.push('');
     console.log(lines.join('\n'));
@@ -663,22 +754,60 @@ const actions = {
       return;
     }
 
-    state.energy = clamp(state.energy + 25);
+    // Random event: 10% chance for treat (double energy)
+    const isTreat = Math.random() < 0.10;
+    const energyGain = isTreat ? 50 : 25;
+
+    state.energy = clamp(state.energy + energyGain);
     state.focus = clamp(state.focus - 15);
     state.lifetimeTokens += 25;
+    state.focusLowSince = null; // clear neglect on interaction
     setCooldown(state, 'manual-feed');
     saveState(state);
 
     const stage = getStage(state.lifetimeTokens);
-    const mood = getMood(state.energy, state.focus);
+    const mood = getEffectiveMood(state);
     const scene = buildScene(stage, mood, state);
 
     const lines = [''];
     for (const line of scene) lines.push(`  ${line}`);
     lines.push('');
-    lines.push(`  ${c.bg}+25 Energy${c.r}  ${c.br}-15 Focus${c.r}  ${c.d}snack break!${c.r}`);
+    if (isTreat) {
+      lines.push(`  ${c.by}✨ Found a treat!${c.r}  ${c.bg}+${energyGain} Energy${c.r}  ${c.br}-15 Focus${c.r}`);
+    } else {
+      lines.push(`  ${c.bg}+25 Energy${c.r}  ${c.br}-15 Focus${c.r}  ${c.d}snack break!${c.r}`);
+    }
     lines.push('');
     console.log(lines.join('\n'));
+  },
+
+  pat() {
+    const state = loadState();
+    if (!state) { console.error('No pet found. Run init first.'); process.exit(1); }
+
+    updateStreak(state);
+    applyDecay(state);
+
+    // Clean old pat timestamps (> 1 hour)
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    state.patTimestamps = (state.patTimestamps || []).filter(t => t > oneHourAgo);
+
+    // Diminishing returns
+    const patsThisHour = state.patTimestamps.length;
+    let focusGain = 0;
+    if (patsThisHour < 5) focusGain = 3;
+    else if (patsThisHour < 10) focusGain = 1;
+
+    state.focus = clamp(state.focus + focusGain);
+    state.patTimestamps.push(Date.now());
+    state.focusLowSince = null; // clear neglect on interaction
+    saveState(state);
+
+    if (focusGain > 0) {
+      console.log(`*pat pat* ${state.name} wiggles happily! +${focusGain} focus`);
+    } else {
+      console.log(`${state.name} appreciates it, but is getting overwhelmed!`);
+    }
   },
 
   name() {
@@ -753,7 +882,7 @@ if (require.main === module) {
   const action = process.argv[2];
   if (!action || !actions[action]) {
     console.log('Usage: node pet-engine.js <action> [args]');
-    console.log('Actions: init, feed <tool>, decay, status, status-brief, play, manual-feed, name <name>, dashboard, menubar');
+    console.log('Actions: init, feed <tool>, decay, status, status-brief, play, manual-feed, pat, name <name>, dashboard, menubar');
     process.exit(1);
   }
   actions[action]();
@@ -768,10 +897,15 @@ module.exports = {
   clamp,
   getStage,
   getMood,
+  getEffectiveMood,
   getEvolution,
   streakFire,
   getStreakDecayMultiplier,
   createDefaultState,
   migrateState,
+  getCooldownRemaining,
+  setCooldown,
+  formatCooldown,
+  COOLDOWNS,
   STAGES,
 };
