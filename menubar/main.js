@@ -28,17 +28,31 @@ function startServer() {
   serverChild.unref();
 }
 
+// Wait for the server to actually respond (up to 10 seconds)
+function waitForServer(maxMs = 10000) {
+  const start = Date.now();
+  return new Promise((resolve) => {
+    function check() {
+      if (Date.now() - start > maxMs) return resolve(false);
+      isServerRunning().then((ok) => {
+        if (ok) resolve(true);
+        else setTimeout(check, 300);
+      });
+    }
+    check();
+  });
+}
+
 app.on('ready', async () => {
   // Don't show in dock
   app.dock?.hide();
 
-  // Start server if not already running
+  // Ensure server is running
   const running = await isServerRunning();
   if (!running) {
     startServer();
-    // Wait for server to be ready
-    await new Promise((resolve) => setTimeout(resolve, 800));
   }
+  await waitForServer();
 
   const icon = createTrayIcon();
 
@@ -47,7 +61,7 @@ app.on('ready', async () => {
     index: SERVER_URL,
     browserWindow: {
       width: 320,
-      height: 460,
+      height: 620,
       resizable: false,
       skipTaskbar: true,
       webPreferences: {
@@ -64,9 +78,19 @@ app.on('ready', async () => {
     console.log('claude-pet menu bar app ready');
   });
 
-  // Refresh state (not full reload) every time the popover shows
+  // Refresh on show — reload page if it's blank (failed initial load)
   mb.on('after-show', () => {
-    mb.window?.webContents.executeJavaScript('poll()').catch(() => {});
+    const wc = mb.window?.webContents;
+    if (!wc) return;
+    wc.executeJavaScript('document.querySelector(".container.ready") !== null')
+      .then((hasContent) => {
+        if (!hasContent) {
+          wc.loadURL(SERVER_URL);
+        } else {
+          wc.executeJavaScript('poll()').catch(() => {});
+        }
+      })
+      .catch(() => wc.loadURL(SERVER_URL));
   });
 });
 
