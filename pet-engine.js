@@ -550,6 +550,52 @@ function applyDecay(state) {
   return state;
 }
 
+// ─── Shared game action functions (used by both CLI and server) ───
+const EXPRESSIONS = ['wiggle', 'sparkle', 'bounce', 'dance', 'zen'];
+const PAT_TIMESTAMPS_CAP = 20;
+
+function applyPat(state) {
+  const oneHourAgo = Date.now() - 60 * 60 * 1000;
+  state.patTimestamps = (state.patTimestamps || []).filter(t => t > oneHourAgo).slice(-PAT_TIMESTAMPS_CAP);
+  const patsThisHour = state.patTimestamps.length;
+  let focusGain = 0;
+  if (patsThisHour < 5) focusGain = 3;
+  else if (patsThisHour < 10) focusGain = 1;
+  state.focus = clamp(state.focus + focusGain);
+  state.patTimestamps.push(Date.now());
+  state.focusLowSince = null;
+  return { focusGain, patsThisHour: patsThisHour + 1 };
+}
+
+function applyManualFeed(state) {
+  const isTreat = Math.random() < 0.10;
+  const energyGain = isTreat ? 50 : 25;
+  state.energy = clamp(state.energy + energyGain);
+  state.focus = clamp(state.focus - 15);
+  state.lifetimeTokens += 25;
+  state.focusLowSince = null;
+  setCooldown(state, 'manual-feed');
+  const event = isTreat ? { type: 'treat', message: 'Found a treat! Double energy!' } : null;
+  return { event, energyGain };
+}
+
+function applyPlay(state) {
+  const available = EXPRESSIONS.filter(e => !state.learnedExpressions.includes(e));
+  const learnsExpression = Math.random() < 0.05 && available.length > 0;
+  const focusGain = learnsExpression ? 25 : 15;
+  state.focus = clamp(state.focus + focusGain);
+  state.energy = clamp(state.energy - 15);
+  state.focusLowSince = null;
+  setCooldown(state, 'play');
+  let event = null;
+  if (learnsExpression) {
+    const trick = available[Math.floor(Math.random() * available.length)];
+    state.learnedExpressions.push(trick);
+    event = { type: 'trick', message: `Learned a new trick: ${trick}!`, trick };
+  }
+  return { event, focusGain };
+}
+
 // ─── Get feed amount for a tool ───
 function getFeedAmount(toolName) {
   if (FEED_VALUES[toolName]) return FEED_VALUES[toolName];
@@ -672,7 +718,7 @@ const actions = {
     // Show welcome-back message and clear flag
     if (state.welcomeBackPending) {
       state.welcomeBackPending = false;
-      process.stderr.write(`Welcome back! ${state.name} missed you! (+10% focus)\n`);
+      process.stderr.write(`Welcome back! ${state.name} missed you! (+10 focus)\n`);
     }
 
     saveState(state);
@@ -702,24 +748,7 @@ const actions = {
       return;
     }
 
-    // Random event: 5% chance to learn expression
-    const EXPRESSIONS = ['wiggle', 'sparkle', 'bounce', 'dance', 'zen'];
-    const available = EXPRESSIONS.filter(e => !(state.learnedExpressions || []).includes(e));
-    const learnsExpression = Math.random() < 0.05 && available.length > 0;
-    const focusGain = learnsExpression ? 25 : 15;
-
-    state.focus = clamp(state.focus + focusGain);
-    state.energy = clamp(state.energy - 15);
-    state.focusLowSince = null; // clear neglect on interaction
-    setCooldown(state, 'play');
-
-    let learnedTrick = null;
-    if (learnsExpression) {
-      learnedTrick = available[Math.floor(Math.random() * available.length)];
-      if (!state.learnedExpressions) state.learnedExpressions = [];
-      state.learnedExpressions.push(learnedTrick);
-    }
-
+    const { event, focusGain } = applyPlay(state);
     saveState(state);
 
     const stage = getStage(state.lifetimeTokens);
@@ -729,8 +758,8 @@ const actions = {
     const lines = [''];
     for (const line of scene) lines.push(`  ${line}`);
     lines.push('');
-    if (learnedTrick) {
-      lines.push(`  ${c.by}✨ Learned a new trick: ${learnedTrick}!${c.r}`);
+    if (event) {
+      lines.push(`  ${c.by}✨ ${event.message}${c.r}`);
       lines.push(`  ${c.bg}+${focusGain} Focus${c.r}  ${c.br}-15 Energy${c.r}`);
     } else {
       lines.push(`  ${c.bg}+15 Focus${c.r}  ${c.br}-15 Energy${c.r}`);
@@ -754,15 +783,7 @@ const actions = {
       return;
     }
 
-    // Random event: 10% chance for treat (double energy)
-    const isTreat = Math.random() < 0.10;
-    const energyGain = isTreat ? 50 : 25;
-
-    state.energy = clamp(state.energy + energyGain);
-    state.focus = clamp(state.focus - 15);
-    state.lifetimeTokens += 25;
-    state.focusLowSince = null; // clear neglect on interaction
-    setCooldown(state, 'manual-feed');
+    const { event, energyGain } = applyManualFeed(state);
     saveState(state);
 
     const stage = getStage(state.lifetimeTokens);
@@ -772,7 +793,7 @@ const actions = {
     const lines = [''];
     for (const line of scene) lines.push(`  ${line}`);
     lines.push('');
-    if (isTreat) {
+    if (event) {
       lines.push(`  ${c.by}✨ Found a treat!${c.r}  ${c.bg}+${energyGain} Energy${c.r}  ${c.br}-15 Focus${c.r}`);
     } else {
       lines.push(`  ${c.bg}+25 Energy${c.r}  ${c.br}-15 Focus${c.r}  ${c.d}snack break!${c.r}`);
@@ -788,19 +809,7 @@ const actions = {
     updateStreak(state);
     applyDecay(state);
 
-    // Clean old pat timestamps (> 1 hour)
-    const oneHourAgo = Date.now() - 60 * 60 * 1000;
-    state.patTimestamps = (state.patTimestamps || []).filter(t => t > oneHourAgo);
-
-    // Diminishing returns
-    const patsThisHour = state.patTimestamps.length;
-    let focusGain = 0;
-    if (patsThisHour < 5) focusGain = 3;
-    else if (patsThisHour < 10) focusGain = 1;
-
-    state.focus = clamp(state.focus + focusGain);
-    state.patTimestamps.push(Date.now());
-    state.focusLowSince = null; // clear neglect on interaction
+    const { focusGain } = applyPat(state);
     saveState(state);
 
     if (focusGain > 0) {
@@ -908,4 +917,7 @@ module.exports = {
   formatCooldown,
   COOLDOWNS,
   STAGES,
+  applyPat,
+  applyManualFeed,
+  applyPlay,
 };

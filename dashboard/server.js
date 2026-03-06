@@ -96,16 +96,8 @@ const server = http.createServer(async (req, res) => {
       engine.saveState(state);
       return jsonResponse(res, { ...enrichState(state), message: `Not hungry yet! ${engine.formatCooldown(cd)} left` });
     }
-    // Random event: 10% chance for treat (double energy)
-    const isTreat = Math.random() < 0.10;
-    const energyGain = isTreat ? 50 : 25;
-    state.energy = engine.clamp(state.energy + energyGain);
-    state.focus = engine.clamp(state.focus - 15);
-    state.lifetimeTokens += 25;
-    state.focusLowSince = null; // clear neglect
-    engine.setCooldown(state, 'manual-feed');
+    const { event } = engine.applyManualFeed(state);
     engine.saveState(state);
-    const event = isTreat ? { type: 'treat', message: 'Found a treat! Double energy!' } : null;
     jsonResponse(res, { ...enrichState(state), event });
     return;
   }
@@ -147,23 +139,7 @@ const server = http.createServer(async (req, res) => {
       engine.saveState(state);
       return jsonResponse(res, { ...enrichState(state), message: 'Too tired to play!' });
     }
-    // Random event: 5% chance to learn expression
-    const EXPRESSIONS = ['wiggle', 'sparkle', 'bounce', 'dance', 'zen'];
-    const learned = state.learnedExpressions || [];
-    const available = EXPRESSIONS.filter(e => !learned.includes(e));
-    const learnsExpression = Math.random() < 0.05 && available.length > 0;
-    const focusGain = learnsExpression ? 25 : 15;
-    state.focus = engine.clamp(state.focus + focusGain);
-    state.energy = engine.clamp(state.energy - 15);
-    state.focusLowSince = null; // clear neglect
-    engine.setCooldown(state, 'play');
-    let event = null;
-    if (learnsExpression) {
-      const trick = available[Math.floor(Math.random() * available.length)];
-      if (!state.learnedExpressions) state.learnedExpressions = [];
-      state.learnedExpressions.push(trick);
-      event = { type: 'trick', message: `Learned a new trick: ${trick}!`, trick };
-    }
+    const { event } = engine.applyPlay(state);
     engine.saveState(state);
     jsonResponse(res, { ...enrichState(state), event });
     return;
@@ -174,18 +150,9 @@ const server = http.createServer(async (req, res) => {
     if (!state) return jsonResponse(res, { error: 'No pet found' }, 404);
     engine.updateStreak(state);
     engine.applyDecay(state);
-    // Clean old pat timestamps (> 1 hour)
-    const oneHourAgo = Date.now() - 60 * 60 * 1000;
-    state.patTimestamps = (state.patTimestamps || []).filter(t => t > oneHourAgo);
-    const patsThisHour = state.patTimestamps.length;
-    let focusGain = 0;
-    if (patsThisHour < 5) focusGain = 3;
-    else if (patsThisHour < 10) focusGain = 1;
-    state.focus = engine.clamp(state.focus + focusGain);
-    state.patTimestamps.push(Date.now());
-    state.focusLowSince = null; // clear neglect
+    const { focusGain, patsThisHour } = engine.applyPat(state);
     engine.saveState(state);
-    jsonResponse(res, { ...enrichState(state), patGain: focusGain, patsThisHour: patsThisHour + 1 });
+    jsonResponse(res, { ...enrichState(state), patGain: focusGain, patsThisHour });
     return;
   }
 

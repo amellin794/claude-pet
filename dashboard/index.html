@@ -1301,7 +1301,6 @@ function startCooldownTimer(action, remainingMs) {
   const btn = document.getElementById(action === 'feed' ? 'feedBtn' : 'playBtn');
   const cost = document.getElementById(action === 'feed' ? 'feedCost' : 'playCost');
   const defaultCost = action === 'feed' ? '+25 energy \xb7 -15 focus' : '+15 focus \xb7 -15 energy';
-  const timerRef = action === 'feed' ? 'feedCDTimer' : 'playCDTimer';
 
   if (action === 'feed' && feedCDTimer) clearInterval(feedCDTimer);
   if (action === 'play' && playCDTimer) clearInterval(playCDTimer);
@@ -1332,10 +1331,8 @@ function startCooldownTimer(action, remainingMs) {
 }
 
 function syncCooldowns(state) {
-  if (state.feedCooldown > 0) startCooldownTimer('feed', state.feedCooldown);
-  else startCooldownTimer('feed', 0);
-  if (state.playCooldown > 0) startCooldownTimer('play', state.playCooldown);
-  else startCooldownTimer('play', 0);
+  startCooldownTimer('feed', state.feedCooldown || 0);
+  startCooldownTimer('play', state.playCooldown || 0);
 }
 
 // ─── API ───
@@ -1457,16 +1454,28 @@ function showWelcomeBack(name) {
 
   const overlay = document.createElement('div');
   overlay.className = 'welcome-overlay';
-  overlay.innerHTML = `
-    <div class="welcome-title">Welcome back!</div>
-    <div class="welcome-sub">${name} missed you</div>
-    <div class="welcome-boost">+10% focus</div>
-  `;
-  overlay.onclick = () => overlay.remove();
+
+  const title = document.createElement('div');
+  title.className = 'welcome-title';
+  title.textContent = 'Welcome back!';
+
+  const sub = document.createElement('div');
+  sub.className = 'welcome-sub';
+  sub.textContent = name + ' missed you';
+
+  const boost = document.createElement('div');
+  boost.className = 'welcome-boost';
+  boost.textContent = '+10 focus';
+
+  overlay.appendChild(title);
+  overlay.appendChild(sub);
+  overlay.appendChild(boost);
+
+  const dismissTimer = setTimeout(() => overlay.remove(), 3000);
+  overlay.onclick = () => { clearTimeout(dismissTimer); overlay.remove(); };
   document.body.appendChild(overlay);
 
   setTimeout(() => triggerAnim('bounce'), 300);
-  setTimeout(() => overlay.remove(), 3000);
 
   // Acknowledge welcome-back
   fetch('/api/welcome-ack', { method: 'POST' }).catch(() => {});
