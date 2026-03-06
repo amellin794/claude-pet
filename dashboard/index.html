@@ -13,11 +13,17 @@
     --text: #e2e8f0;
     --text-dim: #64748b;
     --text-muted: #475569;
-    --accent: #4ade80;
-    --accent-dim: #4ade8020;
+    --accent: #c084fc;
+    --accent-dim: #c084fc20;
+    --energy: #fbbf24;
+    --energy-dim: #fbbf2420;
+    --focus: #60a5fa;
+    --focus-dim: #60a5fa20;
+    --evo: #4ade80;
+    --evo-dim: #4ade8020;
     --danger: #f43f5e;
     --warning: #fbbf24;
-    --success: #4ade80;
+    --streak: #fb7185;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -217,10 +223,11 @@
     font-weight: 600;
   }
 
-  .mood-happy .mood-badge { background: #22c55e18; color: #4ade80; }
-  .mood-neutral .mood-badge { background: #f59e0b18; color: #fbbf24; }
+  .mood-happy .mood-badge { background: #c084fc18; color: #c084fc; }
+  .mood-neutral .mood-badge { background: #60a5fa18; color: #60a5fa; }
   .mood-tired .mood-badge { background: #f59e0b18; color: #fbbf24; }
   .mood-sad .mood-badge { background: #f43f5e18; color: #fb7185; }
+  .mood-neglected .mood-badge { background: #64748b18; color: #94a3b8; }
 
   /* Streak */
   .streak-row {
@@ -316,7 +323,7 @@
   }
 
   .evo-label { font-size: 12px; color: var(--text-dim); font-weight: 600; }
-  .evo-pct { font-size: 12px; font-weight: 700; color: var(--accent); }
+  .evo-pct { font-size: 12px; font-weight: 700; color: var(--evo); }
 
   .evo-bar-bg {
     height: 6px;
@@ -327,7 +334,7 @@
 
   .evo-bar-fill {
     height: 100%;
-    background: var(--accent);
+    background: var(--evo);
     border-radius: 3px;
     transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   }
@@ -432,7 +439,7 @@
     opacity: 1;
   }
 
-  .toast-feed { background: #22c55e22; color: #4ade80; border: 1px solid #22c55e30; }
+  .toast-feed { background: #fbbf2422; color: #fbbf24; border: 1px solid #fbbf2430; }
   .toast-play { background: #3b82f622; color: #60a5fa; border: 1px solid #3b82f630; }
   .toast-warn { background: #f59e0b22; color: #fbbf24; border: 1px solid #f59e0b30; }
   .toast-pat { background: #fb718522; color: #fb7185; border: 1px solid #fb718530; }
@@ -631,7 +638,7 @@
   .welcome-overlay .welcome-boost {
     font-size: 16px;
     font-weight: 700;
-    color: var(--accent);
+    color: var(--focus);
     margin-top: 14px;
     animation: welcome-slide 0.5s ease both;
     animation-delay: 0.6s;
@@ -926,9 +933,9 @@ let currentState = null;
 let blinkTimer = null;
 
 // ─── Helpers ───
-function statColor(v) {
-  if (v >= 70) return '#4ade80';
-  if (v >= 40) return '#fbbf24';
+function statColor(stat, v) {
+  if (v >= 70) return stat === 'energy' ? '#fbbf24' : '#60a5fa';
+  if (v >= 40) return '#f59e0b';
   return '#f43f5e';
 }
 
@@ -1019,6 +1026,9 @@ async function finishOnboarding() {
     showToast('Something went wrong', 'warn');
   }
 }
+
+// ─── Mood emoji constant ───
+const MOOD_EMOJI = { happy: '\u{1F60A}', neutral: '\u{1F610}', tired: '\u{1F634}', sad: '\u{1F622}', neglected: '\u{1F915}' };
 
 // ─── Contextual tips based on time + pet state ───
 function getTip(s) {
@@ -1132,11 +1142,10 @@ function render(s) {
   if (s.stage !== prev.stage || s.mood !== prev.mood) {
     const stageText = s.stage.charAt(0).toUpperCase() + s.stage.slice(1);
     const moodText = s.mood.charAt(0).toUpperCase() + s.mood.slice(1);
-    const moodEmoji = { happy: '\u{1F60A}', neutral: '\u{1F610}', tired: '\u{1F62A}', sad: '\u{1F622}', neglected: '\u{1F912}' }[s.mood] || '';
     const meta = document.getElementById('petMeta');
     meta.className = 'pet-meta mood-' + s.mood;
     document.getElementById('stageLabel').textContent = stageText;
-    document.getElementById('moodBadge').innerHTML = moodEmoji + ' ' + moodText;
+    document.getElementById('moodBadge').innerHTML = (MOOD_EMOJI[s.mood] || '') + ' ' + moodText;
   }
 
   // Streak
@@ -1209,35 +1218,39 @@ function render(s) {
     const bar = document.getElementById(id + 'Bar');
     const lbl = document.getElementById(id + 'Val');
     const v = Math.round(val);
+    const color = statColor(id, v);
     bar.style.width = Math.max(2, v) + '%';
-    bar.style.backgroundColor = statColor(v);
+    bar.style.backgroundColor = color;
     lbl.textContent = v + '%';
-    lbl.style.color = statColor(v);
+    lbl.style.color = color;
   }
   setStat('energy', s.energy);
   setStat('focus', s.focus);
 
-  // Evolution (no animations — safe to always update)
-  const es = document.getElementById('evoSection');
-  if (s.evolution) {
-    const p = s.evolution.pct;
-    es.innerHTML = `<div class="evo-wrap">
-      <div class="evo-header">
-        <span class="evo-label">Next: ${s.evolution.next}</span>
-        <span class="evo-pct">${p}%</span>
-      </div>
-      <div class="evo-bar-bg"><div class="evo-bar-fill" style="width:${p}%"></div></div>
-      <div class="evo-detail">${s.evolution.tokenProgress.toLocaleString()}/${s.evolution.tokenTarget.toLocaleString()} tokens</div>
-    </div>`;
-  } else {
-    es.innerHTML = '';
+  // Evolution — only rebuild when progress changes
+  const evoPct = s.evolution?.pct;
+  if (evoPct !== prev.evoPct) {
+    const es = document.getElementById('evoSection');
+    if (s.evolution) {
+      const p = evoPct;
+      es.innerHTML = `<div class="evo-wrap">
+        <div class="evo-header">
+          <span class="evo-label">Next: ${s.evolution.next}</span>
+          <span class="evo-pct">${p}%</span>
+        </div>
+        <div class="evo-bar-bg"><div class="evo-bar-fill" style="width:${p}%"></div></div>
+        <div class="evo-detail">${s.evolution.tokenProgress.toLocaleString()}/${s.evolution.tokenTarget.toLocaleString()} tokens</div>
+      </div>`;
+    } else {
+      es.innerHTML = '';
+    }
+    prev.evoPct = evoPct;
   }
 
   // Flavor — only change when mood or stage changes
   if (s.mood !== prev.mood || s.stage !== prev.stage) {
-    const moodEmoji = { happy: '\u{1F60A}', neutral: '\u{1F610}', tired: '\u{1F634}', sad: '\u{1F622}', neglected: '\u{1F915}' };
     const flavors = FLAVOR[s.stage]?.[s.mood] || ['...'];
-    const emoji = moodEmoji[s.mood] || '';
+    const emoji = MOOD_EMOJI[s.mood] || '';
     document.getElementById('flavorText').textContent = `${emoji} ${s.name}: "${pick(flavors)}"`;
   }
 

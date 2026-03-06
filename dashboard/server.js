@@ -7,6 +7,7 @@ const engine = require('../pet-engine.js');
 
 const PORT = 7742;
 const HTML_FILE = path.join(__dirname, 'index.html');
+const HTML_CACHE = fs.readFileSync(HTML_FILE, 'utf8');
 
 function enrichState(state) {
   const stage = engine.getStage(state.lifetimeTokens);
@@ -70,14 +71,8 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
 
   if (req.method === 'GET' && url.pathname === '/') {
-    try {
-      const html = fs.readFileSync(HTML_FILE, 'utf8');
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(html);
-    } catch {
-      res.writeHead(500, { 'Content-Type': 'text/plain' });
-      res.end('index.html not found');
-    }
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(HTML_CACHE);
     return;
   }
 
