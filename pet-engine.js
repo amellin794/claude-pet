@@ -526,8 +526,8 @@ function applyDecay(state) {
   if (hours < 0.01) return state; // skip tiny intervals
 
   const streakMult = getStreakDecayMultiplier(state.streakDays || 0);
-  const energyRecovery = 5 * hours;            // rest restores energy (~20hrs full recharge)
-  const focusDecay = 2.5 * hours * streakMult;  // focus fades when idle (~40hrs full decay)
+  const energyRecovery = 3 * hours;            // rest restores energy (~33hrs full recharge)
+  const focusDecay = 8 * hours * streakMult;   // focus fades when idle (~12hrs full decay)
 
   state.energy = clamp(state.energy + energyRecovery);
   state.focus = clamp(state.focus - focusDecay);
@@ -627,7 +627,7 @@ const actions = {
     updateStreak(state);
     applyDecay(state);
     state.focus = clamp(state.focus + amount * 0.05);
-    state.energy = clamp(state.energy - amount * 0.008);
+    state.energy = clamp(state.energy - amount * 0.015);
     state.lifetimeTokens += amount;
     saveState(state);
   },
