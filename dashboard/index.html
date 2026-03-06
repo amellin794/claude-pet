@@ -399,6 +399,16 @@
     opacity: 0.8;
   }
 
+  /* Tip line */
+  .tip {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 2px 16px 6px;
+    opacity: 0.6;
+    transition: opacity 0.3s ease;
+  }
+
   /* Toast */
   .toast {
     position: fixed;
@@ -756,6 +766,7 @@
     </div>
 
     <div class="flavor" id="flavorText"></div>
+    <div class="tip" id="tipText"></div>
   </div>
 
 </div>
@@ -1009,6 +1020,104 @@ async function finishOnboarding() {
   }
 }
 
+// ─── Contextual tips based on time + pet state ───
+function getTip(s) {
+  const hr = new Date().getHours();
+  const e = Math.round(s.energy);
+  const f = Math.round(s.focus);
+
+  // Late night (midnight–5am)
+  if (hr >= 0 && hr < 5) {
+    if (e < 30) return "your pet's not the only one running on fumes";
+    return pick([
+      "nothing good happens after 2am... except shipping",
+      "the bugs come out at night",
+      "sleep is a feature, not a bug",
+      "even gremlins need rest eventually",
+      "your pet judges your sleep schedule",
+    ]);
+  }
+
+  // Early morning (5–9am)
+  if (hr < 9) {
+    return pick([
+      "grab a coffee, you've earned it",
+      "morning commits hit different",
+      "early bird gets the merge conflict",
+      "the code is still warm from yesterday",
+      "stretch first, ship second",
+    ]);
+  }
+
+  // Midday (11am–1pm)
+  if (hr >= 11 && hr < 13) {
+    if (e < 40) return "low energy? sounds like a lunch problem";
+    return pick([
+      "have you eaten something that isn't code?",
+      "lunch break: the original cooldown timer",
+      "a sandwich would fix this",
+      "touch grass, then touch keyboard",
+    ]);
+  }
+
+  // Afternoon slump (2–4pm)
+  if (hr >= 14 && hr < 16) {
+    return pick([
+      "the 3pm slump is real. get a snack",
+      "coffee refill? don't lie to yourself",
+      "your pet believes in afternoon walks",
+      "stand up. no really. stand up",
+      "hydrate or diedrate",
+    ]);
+  }
+
+  // Evening (6–9pm)
+  if (hr >= 18 && hr < 21) {
+    if (f > 80) return "you're locked in. don't let dinner stop you";
+    return pick([
+      "winding down? your pet approves",
+      "evening coding: no slack notifications",
+      "this is the golden hour for shipping",
+      "your pet recommends a beverage",
+    ]);
+  }
+
+  // Late evening (9pm–midnight)
+  if (hr >= 21) {
+    return pick([
+      "one more commit won't hurt... right?",
+      "your pet is getting sleepy",
+      "tomorrow-you will thank tonight-you for stopping",
+      "the diff can wait til morning",
+      "your pet's yawning. take the hint",
+    ]);
+  }
+
+  // State-based (morning/afternoon working hours fallthrough)
+  if (f < 15) return "your pet needs attention. maybe you do too";
+  if (f < 30) return "focus is fading — play or pat to reconnect";
+  if (e < 20) return "running on empty. rest or feed";
+  if (e > 90 && f > 90) return pick([
+    "peak performance. this is the zone",
+    "you and your pet are absolutely vibing",
+    "this is what flow state looks like",
+  ]);
+  if (s.streakDays >= 7) return pick([
+    "streak game strong. keep it up",
+    "consistency is a superpower",
+    `${s.streakDays} days and counting. legend`,
+  ]);
+
+  return pick([
+    "ship something today",
+    "small commits > big commits",
+    "your pet thinks you're doing great",
+    "the best code is the code that ships",
+    "refactor later. ship now",
+    "you got this",
+  ]);
+}
+
 // ─── Render (skip unchanged animated elements to prevent jank) ───
 let prev = {};
 
@@ -1128,6 +1237,13 @@ function render(s) {
   if (s.mood !== prev.mood || s.stage !== prev.stage) {
     const flavors = FLAVOR[s.stage]?.[s.mood] || ['...'];
     document.getElementById('flavorText').textContent = pick(flavors);
+  }
+
+  // Tip — rotate every ~30s
+  const now = Date.now();
+  if (!prev.tipTime || now - prev.tipTime > 30000 || s.mood !== prev.mood) {
+    document.getElementById('tipText').textContent = getTip(s);
+    prev.tipTime = now;
   }
 
   // Track previous values for diff-based rendering
