@@ -1,151 +1,133 @@
 # claude-pet
 
-A virtual pet that lives inside [Claude Code](https://docs.anthropic.com/en/docs/claude-code). It feeds on your tool usage, decays when you're away, and evolves as you code.
+A virtual pet that lives inside [Claude Code](https://claude.ai/claude-code). It watches how you code and reacts — if you ship a lot, it's happy. Ignore it, and it gets sad.
 
-```
-     ♥ ♥ ♥ ♡ ♡
+Your pet evolves through 5 stages (egg -> baby -> teen -> adult -> elder), has mood-based animations, a streak counter, and lives in your macOS menu bar.
 
-       _.-._
-      / ^_^ \    ♪
-     |       |
-      \_____/
-  ░░░░░░░░░░░░░░░
-```
-
-## Install
-
-```bash
-git clone https://github.com/amellin794/claude-pet.git
-cd claude-pet
-./install.sh
-```
-
-Or name your pet on install:
-
-```bash
-./install.sh Bloop
-```
+![claude-pet](https://github.com/user-attachments/assets/placeholder)
 
 ## How it works
 
-**Feeding** — Every time Claude Code uses a tool (Read, Edit, Bash, etc.), your pet gets fed. Bigger tools = more food:
+claude-pet hooks into Claude Code's lifecycle events:
 
-| Tool | Feed |
-|------|------|
-| Agent | 50 |
-| Bash | 30 |
-| Edit / Write | 20 |
-| WebFetch / WebSearch | 15 |
-| Grep | 12 |
-| Read | 10 |
-| Glob | 8 |
-| MCP tools | 15 |
+- **PostToolUse** — every tool call (edit, bash, grep, etc.) feeds your pet, building focus and lifetime tokens
+- **SessionStart** — shows your pet's status in the terminal when you start a session
+- Energy recovers passively over time. Focus decays when you're away.
+- Streaks reward consistency — longer streaks slow focus decay
 
-**Decay** — Stats drop over time when you're not coding. Hunger falls ~5/hr, happiness ~3/hr. If hunger hits 0, happiness drops 2x faster.
+## Features
 
-**Streaks** — Code on consecutive days to build a streak. Streaks slow decay:
+- 5 evolution stages based on lifetime token accumulation
+- 5 moods: happy, neutral, tired, sad, neglected
+- Mood-specific animations (music notes, zzz, teardrops, etc.)
+- Streak system with milestone rewards (7, 30, 100 days)
+- Interactive actions: feed, play, pat
+- macOS menu bar app (Electron)
+- Web dashboard on localhost:7742
+- ASCII art in the terminal via `/pet`
 
-| Streak | Decay reduction |
-|--------|----------------|
-| 1+ days | 10% slower |
-| 7+ days | 25% slower |
-| 30+ days | 40% slower |
-| 100+ days | 50% slower |
+## Install
 
-**Evolution** — Your pet grows as you accumulate lifetime tokens:
+### 1. Clone the repo
 
-- **Baby** (0–1K tokens) — Small blob
-- **Teen** (1K–10K tokens) — Medium blob
-- **Adult** (10K+ tokens) — Large blob with arm bumps
-
-**Moods** — Based on average of hunger + happiness:
-
-- **Happy** (70+) — `^_^` with a music note
-- **Neutral** (40–69) — `o_o`
-- **Hungry** (20–39) — `>_<` with `...`
-- **Sad** (0–19) — `;_;` with a teardrop
-
-## Browser Dashboard
-
-Open a live SVG dashboard in your browser that auto-updates as you code:
-
-```
-/pet dashboard
+```bash
+git clone https://github.com/melonhead629/claude-pet.git ~/.claude/tamagotchi
 ```
 
-Or run directly:
+### 2. Initialize your pet
+
+```bash
+node ~/.claude/tamagotchi/pet-engine.js init "YourPetName"
+```
+
+### 3. Add hooks to Claude Code
+
+Add the following to your `~/.claude/settings.json` (or merge into your existing hooks config):
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/tamagotchi/hooks/post-tool-use.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/tamagotchi/hooks/session-start.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### 4. (Optional) Menu bar app
+
+```bash
+cd ~/.claude/tamagotchi/menubar
+npm install
+npx electron .
+```
+
+### 5. (Optional) Web dashboard
 
 ```bash
 node ~/.claude/tamagotchi/pet-engine.js dashboard
 ```
 
-The dashboard runs on `http://localhost:7742` — shows your pet's animated blob, stats, hearts, and lets you feed/play from the browser.
+Opens at [http://localhost:7742](http://localhost:7742).
 
-## Menu Bar App (macOS)
-
-Pin your pet to the macOS menu bar — always visible, zero-friction:
+## CLI commands
 
 ```bash
-cd ~/.claude/tamagotchi/menubar && npm install
+node pet-engine.js init [name]       # Create your pet
+node pet-engine.js status            # Full ASCII status display
+node pet-engine.js status-brief      # One-line status (used by hooks)
+node pet-engine.js feed <tool>       # Feed your pet (called by hooks)
+node pet-engine.js play              # Play with your pet (+focus, -energy)
+node pet-engine.js manual-feed       # Give a snack (+energy, -focus)
+node pet-engine.js pat               # Pat your pet (+focus)
+node pet-engine.js name <new-name>   # Rename your pet
+node pet-engine.js dashboard         # Open web dashboard
+node pet-engine.js menubar           # Launch menu bar app
 ```
 
-Then launch it:
+## Game mechanics
 
-```
-/pet menubar
-```
+| Stat | How it works |
+|------|-------------|
+| **Energy** | Spent by coding activity and playing. Recovers passively over ~33 hours. |
+| **Focus** | Gained from coding activity and playing. Decays over ~12 hours when idle. |
+| **Mood** | Derived from average of energy + focus. Ranges from happy (70+) to sad (<20). |
+| **Streak** | Increments daily when you use Claude Code. Longer streaks slow focus decay. |
+| **Evolution** | Based on lifetime tokens earned from tool usage. 5 stages from egg to elder. |
 
-A blob icon appears in your menu bar. Click it to see the full dashboard in a popover. Click away to dismiss. The dashboard server starts automatically if it isn't already running.
+## Customization
 
-## Commands
+Your pet's color and name can be changed through the web dashboard or menu bar app settings panel.
 
-Use these inside Claude Code:
-
-```
-/pet            — Full status display
-/pet feed       — Give a snack (+25 hunger)
-/pet play       — Play together (+20 happiness, -15 energy)
-/pet name X     — Rename your pet
-/pet dashboard  — Open the browser dashboard
-/pet menubar    — Launch the macOS menu bar app
-/pet help       — Show commands
-```
-
-## What it installs
-
-All files go inside `~/.claude/` (Claude Code's config directory):
-
-```
-~/.claude/
-├── tamagotchi/
-│   ├── pet-engine.js      # Game engine
-│   ├── state.json         # Pet state (created on first run)
-│   ├── dashboard/
-│   │   ├── server.js      # HTTP server (localhost:7742)
-│   │   └── index.html     # SVG animated dashboard
-│   ├── menubar/           # Optional macOS menu bar app
-│   │   ├── package.json
-│   │   ├── main.js
-│   │   └── icon.js
-│   └── hooks/
-│       ├── post-tool-use.sh   # Feeds pet on tool use
-│       └── session-start.sh   # Shows status on session start
-├── commands/
-│   └── pet.md             # /pet slash command
-└── settings.json          # Hooks wired here (merged, not overwritten)
-```
-
-## Uninstall
-
-```bash
-cd claude-pet
-./uninstall.sh
-```
-
-Removes all pet files and hooks. Your `settings.json` is cleaned up, not deleted.
+Available colors: slime, ocean, ember, violet, gold, frost, coral, midnight.
 
 ## Requirements
 
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
-- Node.js (v16+)
-- Python 3 (for hook JSON parsing)
+- [Claude Code](https://claude.ai/claude-code) (CLI)
+- Node.js 18+
+- macOS (menu bar app is Electron-based, dashboard works anywhere)
+
+## License
+
+MIT
