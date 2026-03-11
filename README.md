@@ -4,7 +4,7 @@ A virtual pet that lives inside [Claude Code](https://claude.ai/claude-code). It
 
 Your pet evolves through 5 stages (egg -> baby -> teen -> adult -> elder), has mood-based animations, a streak counter, and lives in your macOS menu bar.
 
-![claude-pet](https://github.com/user-attachments/assets/placeholder)
+![claude-pet](screenshot.png)
 
 ## How it works
 
