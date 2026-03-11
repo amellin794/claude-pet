@@ -1191,23 +1191,25 @@ function render(s) {
         fHtml += `<circle cx="${188+i*12}" cy="${95-i*4}" r="2" fill="#475569" opacity="0.3"
           style="animation: dots-pulse 2.5s ease-in-out infinite; animation-delay: ${i*0.5}s;"/>`;
       }
-    } else if (energyLow) {
-      const chars = ['z', 'z', 'Z'];
-      for (let i = 0; i < 3; i++) {
-        fHtml += `<text x="${194+i*13}" y="${90-i*11}" fill="#475569" font-size="${12+i*4}" font-weight="bold"
-          style="animation: drift-zzz 3s ease-in-out infinite; animation-delay: ${i*0.7}s;">${chars[i]}</text>`;
-      }
     } else if (s.mood === 'happy') {
       fHtml += `<text x="200" y="93" fill="${color.from}" font-size="20"
         style="animation: float-up 2.8s ease-in-out infinite;">&#9835;</text>`;
     } else if (s.mood === 'tired') {
+      // Zzz for tired mood
+      const chars = ['z', 'z', 'Z'];
       for (let i = 0; i < 3; i++) {
-        fHtml += `<circle cx="${194+i*9}" cy="99" r="2.5" fill="#fbbf24"
-          style="animation: dots-pulse 1.5s ease-in-out infinite; animation-delay: ${i*0.3}s;"/>`;
+        fHtml += `<text x="${194+i*13}" y="${90-i*11}" fill="#fbbf24" font-size="${12+i*4}" font-weight="bold"
+          style="animation: drift-zzz 3s ease-in-out infinite; animation-delay: ${i*0.7}s;">${chars[i]}</text>`;
       }
     } else if (s.mood === 'sad') {
       fHtml += `<ellipse cx="200" cy="99" rx="3" ry="5" fill="#60a5fa" opacity="0.5"
         style="animation: tear-fall 2.2s ease-in infinite;"/>`;
+    } else if (energyLow) {
+      // Low energy dots when mood is neutral — subtle yawn indicator
+      for (let i = 0; i < 3; i++) {
+        fHtml += `<circle cx="${194+i*9}" cy="99" r="2.5" fill="#fbbf24" opacity="0.4"
+          style="animation: dots-pulse 2s ease-in-out infinite; animation-delay: ${i*0.4}s;"/>`;
+      }
     }
     fg.innerHTML = fHtml;
     prev.energyLow = energyLow;
